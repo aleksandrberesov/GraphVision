@@ -23,21 +23,70 @@ def labled_box(label: str, x: int, y: int) -> rx.Component:
     )
 
 def simple_box(label: str, x: int, y: int) -> rx.Component:
-    return rx.box(
-        width="100px",
-        height="100px",
-        bg="blue",
-        padding="2px",
-        border_radius="4px",
+    return rx.menu.root(
+        rx.menu.trigger(
+            rx.box(
+            rx.text(label),
+            width="100px",
+            height="100px",
+            position="relative",
+            bg="blue",
+            padding="2px",
+            border_radius="4px",
+            )
+        ),
+        rx.menu.content(
+            rx.menu.item("Add Trasformer"),
+            rx.menu.separator(),
+            rx.menu.item("Delete"),
+            rx.menu.separator(),
+            rx.menu.sub(
+                rx.menu.sub_trigger("More Options"),
+                rx.menu.sub_content(
+                    rx.menu.item("Option A"),
+                    rx.menu.item("Option B"),
+                ),
+            ),
+            side="bottom",   
+            align="center", 
+        ),
     )
 
+
 def button_box(label: str, x: int, y: int) -> rx.Component:
-    return rx.button(
-        label,
-        width="100px",
-        height="100px",
-        bg="green",
-        padding="2px",
-        border_radius="4px",
-        on_click=lambda: BoxState.select(label),
+    return rx.box( 
+        rx.drawer.root(
+            rx.drawer.trigger(
+                rx.button(
+                    label,
+                    width="100px",
+                    height="100px",
+                    position="absolute",
+                    left=f"{x}px",
+                    top=f"{y}px",
+                    bg="green",
+                    padding="2px",
+                    border_radius="4px",
+                    on_click=lambda: BoxState.select(label),
+                )
+            ),
+            rx.drawer.portal(
+                rx.drawer.content(
+                    rx.flex(
+                        rx.drawer.close(rx.button("Close")),
+                        rx.box(f"Details of {label}"),
+                        align_items="start",
+                        direction="column",
+                    ),
+                    top="auto",
+                    right="auto",
+                    height="100%",
+                    width="20em",
+                    padding="2em",
+                    background_color="#FFF",
+                )
+            ),
+            direction="left",
+            modal=True,
+        ),
     )

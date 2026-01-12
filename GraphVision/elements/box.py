@@ -12,7 +12,7 @@ def labled_box(label: str, x: int, y: int) -> rx.Component:
         width=rx.cond(BoxState.selected == label, "150px", "100px"),
         height=rx.cond(BoxState.selected == label, "150px", "100px"),     
                         
-        position="absolute",
+        position="relative",
         left=f"{x}px",
         top=f"{y}px",
         bg="tomato",
@@ -22,11 +22,22 @@ def labled_box(label: str, x: int, y: int) -> rx.Component:
         on_click=lambda: BoxState.select(label),
     )
 
-def selectable_boxes(arg_points: list[dict["x": int, "y": int, "label": str]]) -> rx.Component:
+def simple_box(label: str, x: int, y: int) -> rx.Component:
     return rx.box(
-        rx.foreach(
-            arg_points,
-            lambda point: labled_box(point["label"], point["x"], point["y"]),
-        ),
-        position="relative",
+        width="100px",
+        height="100px",
+        bg="blue",
+        padding="2px",
+        border_radius="4px",
+    )
+
+def button_box(label: str, x: int, y: int) -> rx.Component:
+    return rx.button(
+        label,
+        width="100px",
+        height="100px",
+        bg="green",
+        padding="2px",
+        border_radius="4px",
+        on_click=lambda: BoxState.select(label),
     )

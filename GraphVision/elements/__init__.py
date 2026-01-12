@@ -1,5 +1,6 @@
-from .box import selectable_boxes
+from .box import labled_box
+
 
 __all__ = [
-    "selectable_boxes",
+    "labled_box",
 ]

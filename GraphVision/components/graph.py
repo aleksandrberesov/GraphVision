@@ -1,34 +1,15 @@
 import reflex as rx
 
-import random
-
 from ..elements import button_box_drawer
 from ..types import Point, Graph
-
-class PlotState(rx.State):
-
-    GraphPoints: Graph = Graph(points=[
-        Point(x=400, y=20, label="P30"),   
-    ])  
-
-    @rx.var
-    def GetPoints(self) -> list[Point]:
-        return self.GraphPoints.points
-
-    def Add(self):
-        self.GraphPoints.points.append(Point(x=random.randint(1, 1000), y=random.randint(1, 1000), label=f"P{random.randint(1, 1000)}"))
-    def Append(self, label: str):
-        point = next((p for p in self.GraphPoints.points if p.label == label), None)
-        self.GraphPoints.points.append(Point(x=point.x+10, y=point.y+10, label=point.label+"_copy"))
-    def Delete(self, label: str): 
-        self.GraphPoints.points = [point for point in self.GraphPoints.points if point.label != label]
+from ..models import GraphState
 
 def drawer_content(label: str) -> rx.Component:
     return rx.drawer.content(
         rx.flex(
             rx.drawer.title(f"Details of {label}"),
-            rx.button("Delete", width="100%", on_click=lambda: PlotState.Delete(label)),
-            rx.button("Add Transformer", width="100%", on_click=lambda: PlotState.Append(label)),
+            rx.button("Delete", width="100%", on_click=lambda: GraphState.Delete(label)),
+            rx.button("Add Transformer", width="100%", on_click=lambda: GraphState.Append(label)),
             rx.drawer.close(rx.button("Close", width="100%")),
             align_items="start",
             direction="column",
@@ -45,7 +26,7 @@ def drawer_content(label: str) -> rx.Component:
 def plot_layout() -> rx.Component:
     return rx.box(
         rx.foreach(
-            PlotState.GetPoints,
+            GraphState.GetPoints,
             lambda point: button_box_drawer(point, drawer_content)
         ),
         position="absolute",

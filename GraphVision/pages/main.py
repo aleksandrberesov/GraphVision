@@ -1,5 +1,4 @@
 import reflex as rx
-from rxconfig import config
 
 from ..components import (
     plot_layout,

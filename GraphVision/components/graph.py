@@ -9,13 +9,16 @@ points = [
 ]
 
 class PlotState(rx.State):
-    points: Graph = Graph(points=[])  
+    GraphPoints: Graph = Graph(points=[])  
 
-    def Add(self, label: str):
-        self.selected = label
+    def GetPoints(self):
+        return self.GraphPoints.points
+
+    def Add(self, newlabel: str):
+        self.GraphPoints.points.append(Point(x=50, y=50, label=newlabel))
     
-    def Delete(self, label: str):
-        self.selected = ""  
+    def Delete(self, label: str): 
+        self.GraphPoints.points = [point for point in self.GraphPoints.points if point.label != label]
 
 def plot_layout() -> rx.Component:
     return rx.box(

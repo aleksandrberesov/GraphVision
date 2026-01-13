@@ -1,10 +1,25 @@
 import reflex as rx
 
-from ..elements import labled_box, button_box, simple_box
+from ..elements import button_box
+from ..types import Point, Graph
 
-def plot_layout(arg_points: list[dict["x": int, "y": int, "label": str]]) -> rx.Component:
+points = [
+    {"x": 400, "y": 20, "label": "P1"},
+
+]
+
+class PlotState(rx.State):
+    points: Graph = Graph(points=[])  
+
+    def Add(self, label: str):
+        self.selected = label
+    
+    def Delete(self, label: str):
+        self.selected = ""  
+
+def plot_layout() -> rx.Component:
     return rx.box(
-        *[button_box(point["label"], point["x"], point["y"]) for point in arg_points],
+        *[button_box(point["label"], point["x"], point["y"]) for point in points],
  
         position="absolute",
         width="100%",

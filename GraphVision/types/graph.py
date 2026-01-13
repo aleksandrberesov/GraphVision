@@ -4,4 +4,4 @@ from .point import Point
 
 @dataclass
 class Graph:
-    points: list[Point]
+    points: list[Point] = None

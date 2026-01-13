@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Point:
-    x: int
-    y: int
-    label: str
+    x: int = 0
+    y: int = 0
+    label: str = ""
+    id: int = 0

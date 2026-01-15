@@ -6,3 +6,4 @@ class Point:
     y: int = 0
     label: str = ""
     id: int = 0
+    points: list[str] = None 

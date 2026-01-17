@@ -1,13 +1,26 @@
 import reflex as rx
 
 from ..types import Point, Graph
+from .point import PointState
 
 class GraphState(rx.State):
-
+    selected_point: str = ""
+    Points: list[PointState] = [] 
     GraphPoints: Graph = Graph(points=[
         Point(x=400, y=20, label="Start"),   
     ])  
-
+    @rx.var
+    def SelectedPoint(self) -> str:
+        return self.selected_point
+    def SelectPoint(self, label: str):
+        self.selected_point = label
+    def MovePoint(self):
+        if self.selected_point:
+            for point in self.GraphPoints.points:
+                if point.label == self.selected_point:
+                    point.x = x
+                    point.y = y
+                    break
     @rx.var
     def GetPoints(self) -> list[Point]:
         return self.GraphPoints.points
@@ -22,16 +35,11 @@ class GraphState(rx.State):
                 for i, child in enumerate(parent_point.points):
                     new_label = f"{parent_point.label}_{child or 'child'}_{i}"
                     #last_x = child.x
-            new_point = Point(x=parent_point.x+10, y=parent_point.y+10, label=parent_point.label+"_new")
-            """
-            Point(
-                x = parent_point.x + last_x+20,
-                y = parent_point.y + 20,
-                label = new_label,
-                #id=child.id if hasattr(child, 'id') else 0,
-                points = None
+            new_point = Point(
+                x=parent_point.x+10, 
+                y=parent_point.y+10, 
+                label=parent_point.label+"_new"
             )
-            """
             if parent_point.points is None:
                 parent_point.points = []
             parent_point.points.append(new_point.label)

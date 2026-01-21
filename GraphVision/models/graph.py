@@ -11,16 +11,9 @@ class GraphState(rx.State):
     ])  
     @rx.var
     def SelectedPoint(self) -> str:
-        return self.selected_point
+        return self.selected_point  
     def SelectPoint(self, label: str):
         self.selected_point = label
-    def MovePoint(self):
-        if self.selected_point:
-            for point in self.GraphPoints.points:
-                if point.label == self.selected_point:
-                    point.x = x
-                    point.y = y
-                    break
     @rx.var
     def GetPoints(self) -> list[Point]:
         return self.GraphPoints.points

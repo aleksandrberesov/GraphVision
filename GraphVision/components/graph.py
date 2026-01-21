@@ -1,16 +1,8 @@
 import reflex as rx
 
-from ..elements import button_box_drawer, button_box, layout
+from ..elements import button_box_drawer, button_box
 from ..types import Point, Graph
 from ..models import GraphState
-
-class MouseState(rx.State):
-    x: int = 0
-    y: int = 0
-
-    def set_position(self, x: int, y: int):
-        self.x = x
-        self.y = y
 
 def drawer_content(label: str) -> rx.Component:
     return rx.drawer.content(
@@ -32,19 +24,15 @@ def drawer_content(label: str) -> rx.Component:
     )
 
 def plot_layout() -> rx.Component:
-    return layout(
-        rx.box(
-            rx.foreach(
-                GraphState.GetPoints,
-                lambda point: button_box_drawer(point, drawer_content)
-            ),
-            position="absolute",
-            width="100%",
-            height="100%",
-            border="1px solid #ccc",
-            bg="white",
-            #on_click=lambda: BoxState.select(point.label),
-            #on_mouse_down = lambda: BoxState.start_drag,
-            #on_mouse_up = DragState.stop_drag,
-        )
+    return rx.box(
+        rx.foreach(
+            GraphState.GetPoints,
+            lambda point: button_box_drawer(point, drawer_content)
+        ),
+        position="absolute",
+        width="100%",
+        height="100%",
+        border="1px solid #ccc",
+        bg="white",
+        #on_click=lambda: BoxState.select(point.label),
     )

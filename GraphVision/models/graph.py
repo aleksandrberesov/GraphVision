@@ -2,6 +2,7 @@ import reflex as rx
 
 from ..types import Point, Graph
 from .point import PointState
+from ..utils import generate_random_string
 
 class GraphState(rx.State):
     selected_point: str = ""
@@ -29,9 +30,9 @@ class GraphState(rx.State):
                     new_label = f"{parent_point.label}_{child or 'child'}_{i}"
                     #last_x = child.x
             new_point = Point(
-                x=parent_point.x+10, 
-                y=parent_point.y+10, 
-                label=parent_point.label+"_new"
+                x=parent_point.x, 
+                y=parent_point.y+100+10, 
+                label=generate_random_string(16, use_digits=True)
             )
             if parent_point.points is None:
                 parent_point.points = []

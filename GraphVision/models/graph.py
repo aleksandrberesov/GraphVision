@@ -32,7 +32,7 @@ class GraphState(rx.State):
             new_point = Point(
                 x=parent_point.x, 
                 y=parent_point.y+100+10, 
-                label=generate_random_string(16, use_digits=True)
+                label=generate_random_string(12, use_digits=True)
             )
             if parent_point.points is None:
                 parent_point.points = []

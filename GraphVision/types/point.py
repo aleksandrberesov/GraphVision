@@ -9,7 +9,8 @@ class PointPosition:
 class Point:
     x: int = 0
     y: int = 0
+    id: int = 0    
     label: str = ""
+    rear: str = ""  
+    ahead: list[str] = None  
     title: str = ""
-    id: int = 0
-    points: list[str] = None 

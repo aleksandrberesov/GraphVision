@@ -26,7 +26,7 @@ class GraphState(rx.State):
             new_point = Point(
                 x=parent_point.x, 
                 y=parent_point.y+100+10, 
-                label=generate_random_string(12, use_digits=True),
+                label=generate_random_string(10, use_digits=True),
                 rear=parent_point.label,
             )
             self.GraphPoints.points.append(new_point)

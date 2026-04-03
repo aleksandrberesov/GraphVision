@@ -19,20 +19,33 @@ class GraphState(rx.State):
 
     @rx.event
     def add_node(self):
-        new_node_id = generate_random_string(10, use_digits=True)
-        node_type = 'default'
-        label = new_node_id,
-        x = 0
-        y = 0
+        parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None) 
+
+        if parent_node is None:
+            base_x, base_y = 0, 0
+        else:
+            base_x = parent_node.get("position", {}).get("x", 0)
+            base_y = parent_node.get("position", {}).get("y", 0)
 
         new_node = {
-            'id': new_node_id,
-            'type': node_type,
-            'data': {'label': label},
-            'position': {'x': x, 'y': y},
+            'id': generate_random_string(10, use_digits=True),
+            'type': 'default',
+            'data': {'label': generate_random_string(10, use_digits=True),},
+            'position': {
+                'x': base_x + 100,
+                'y': base_y + 100,
+            },
             'draggable': True,
         }
         self.nodes.append(new_node)
+        if parent_node is not None:
+            self.edges.append({
+                "id": f"e{parent_node['id']}-{new_node['id']}",
+                "source": parent_node["id"],
+                "target": new_node["id"],
+                "label": generate_random_string(10, use_digits=True),
+                "animated": False,
+            })
 
     @rx.event
     def delete_node(self, node_id: str):
@@ -71,7 +84,21 @@ class GraphState(rx.State):
             if change["type"] == "select":
                 node = next((node for node in self.nodes if node["id"] == change["id"]), None)
                 if node:
+                    for i, item in enumerate(self.nodes):  
+                        item["style"] = {}
+                    node["style"] = {
+                        'background': '#9CA3AF',
+                        'color': '#FFFFFF',
+                        'border': '1px solid #6B7280',
+                        'width': '150px',
+                        'height': '50px',
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'justifyContent': 'center',
+                        'borderRadius': '5px',
+                    }
                     self.selected_node_id = node["id"]
+
         for i, node in enumerate(self.nodes):
             if node["id"] in map_id_to_new_position:
                 new_position = map_id_to_new_position[node["id"]]

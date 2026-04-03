@@ -83,9 +83,10 @@ class GraphState(rx.State):
                 map_id_to_new_position[change["id"]] = change["position"]
             if change["type"] == "select":
                 node = next((node for node in self.nodes if node["id"] == change["id"]), None)
+                selected_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
+                if selected_node:
+                    selected_node["style"] = {}
                 if node:
-                    for i, item in enumerate(self.nodes):  
-                        item["style"] = {}
                     node["style"] = {
                         'background': '#9CA3AF',
                         'color': '#FFFFFF',

@@ -32,7 +32,8 @@ initial_edges = [
 
 
 class State(rx.State):
-    """The app state."""
+    selected_node: rx.Var[str] = "No selected node" 
+    selected_node_id: rx.Var[str] = ""
     nodes: List[Dict[str, Any]] = initial_nodes
     edges: List[Dict[str, Any]] = initial_edges
 
@@ -53,6 +54,17 @@ class State(rx.State):
             'draggable': True,
         }
         self.nodes.append(new_node)
+
+    @rx.event
+    def delete_node(self, node_id: str):
+        # Remove the node with the given ID
+        self.nodes = [node for node in self.nodes if node["id"] != node_id]
+
+        # Remove edges connected to the deleted node
+        self.edges = [
+            edge for edge in self.edges
+            if edge["source"] != node_id and edge["target"] != node_id
+        ]
 
     @rx.event
     def clear_graph(self):
@@ -87,6 +99,11 @@ class State(rx.State):
         for change in node_changes:
             if change["type"] == "position" and change.get("dragging") == True:
                 map_id_to_new_position[change["id"]] = change["position"]
+            if change["type"] == "select":
+                node = next((node for node in self.nodes if node["id"] == change["id"]), None)
+                if node:
+                    self.selected_node = f"Selected node: {node['id']} with label {node['data']['label']}"    
+                    self.selected_node_id = node["id"]
 
         # Loop over the nodes and update the position
         for i, node in enumerate(self.nodes):
@@ -94,18 +111,16 @@ class State(rx.State):
                 new_position = map_id_to_new_position[node["id"]]
                 self.nodes[i]["position"] = new_position
 
-
 def graphArea() -> rx.Component:
     return rx.vstack(
         react_flow(
             background(),
             controls(),
-            nodes_draggable=False,
+            nodes_draggable=True,
+            nodes_focusable=True,
             nodes_connectable=True,
             on_connect=lambda e0: State.on_connect(e0),
-            on_nodes_change=lambda e0: (
-                State.on_nodes_change(e0)
-            ),
+            on_nodes_change=lambda e0: State.on_nodes_change(e0),
             nodes=State.nodes,
             edges=State.edges,
             fit_view=True,
@@ -121,9 +136,19 @@ def graphArea() -> rx.Component:
                 on_click=State.add_random_node,
                 width="100%",
             ),
+            rx.button(
+                "Delete selected node",
+                on_click=State.delete_node(State.selected_node_id),
+                width="100%",
+            ),
             width="100%",
         ),
-        
+
+        rx.box(
+            rx.text(State.selected_node),
+            background_color="orange",
+            width="40%",
+        ),
         height="90%",
         width="100%",
     )

@@ -1,6 +1,5 @@
 import reflex as rx
-from typing import Any, Dict, List, Union
-
+from typing import Any, Dict, List
 
 class ReactFlowLib(rx.Component):
 

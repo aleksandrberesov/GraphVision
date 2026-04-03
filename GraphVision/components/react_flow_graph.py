@@ -95,12 +95,12 @@ class State(rx.State):
                 self.nodes[i]["position"] = new_position
 
 
-def graph() -> rx.Component:
+def graphArea() -> rx.Component:
     return rx.vstack(
         react_flow(
             background(),
             controls(),
-            nodes_draggable=True,
+            nodes_draggable=False,
             nodes_connectable=True,
             on_connect=lambda e0: State.on_connect(e0),
             on_nodes_change=lambda e0: (
@@ -110,7 +110,7 @@ def graph() -> rx.Component:
             edges=State.edges,
             fit_view=True,
         ),
-        rx.hstack(
+        rx.vstack(
             rx.button(
                 "Clear graph",
                 on_click=State.clear_graph,
@@ -124,6 +124,8 @@ def graph() -> rx.Component:
             width="100%",
         ),
         
-        height="30em",
+        height="90%",
         width="100%",
     )
+
+_all__ = ["graphArea"]

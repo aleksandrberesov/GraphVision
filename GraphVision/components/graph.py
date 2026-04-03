@@ -3,6 +3,7 @@ import reflex as rx
 from ..elements import button_box_drawer, button_box
 from ..types import Point, Graph
 from ..models import GraphState
+from .react_flow_graph import graphArea
 
 def drawer_content(label: str) -> rx.Component:
     return rx.drawer.content(
@@ -25,10 +26,7 @@ def drawer_content(label: str) -> rx.Component:
 
 def plot_layout() -> rx.Component:
     return rx.box(
-        rx.foreach(
-            GraphState.GetPoints,
-            lambda point: button_box_drawer(point, drawer_content)
-        ),
+        graphArea(),
         position="absolute",
         width="100%",
         height="100%",

@@ -3,9 +3,10 @@ from typing import Any, Dict, List, Union
 
 
 class ReactFlowLib(rx.Component):
-    """A component that wraps a react flow lib."""
+    """A component that wraps a react flow lib.
+    """
 
-    library = "reactflow"
+    library = "reactflow@11.10.1"
 
     def _get_custom_code(self) -> str:
         return """import 'reactflow/dist/style.css';

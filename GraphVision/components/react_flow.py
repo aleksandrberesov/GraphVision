@@ -25,7 +25,7 @@ class ReactFlow(ReactFlowLib):
     nodes_focusable: rx.Var[bool]
 
     on_nodes_change: rx.EventHandler[lambda e0: [e0]]
-
+    on_edges_change: rx.EventHandler[lambda e0: [e0]]
     on_connect: rx.EventHandler[lambda e0: [e0]]
 
 class Background(ReactFlowLib):

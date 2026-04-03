@@ -32,7 +32,7 @@ initial_edges = [
 
 
 class State(rx.State):
-    selected_node: rx.Var[str] = "No selected node" 
+    selected_edge_id: rx.Var[str] = "" 
     selected_node_id: rx.Var[str] = ""
     nodes: List[Dict[str, Any]] = initial_nodes
     edges: List[Dict[str, Any]] = initial_edges
@@ -102,7 +102,6 @@ class State(rx.State):
             if change["type"] == "select":
                 node = next((node for node in self.nodes if node["id"] == change["id"]), None)
                 if node:
-                    self.selected_node = f"Selected node: {node['id']} with label {node['data']['label']}"    
                     self.selected_node_id = node["id"]
 
         # Loop over the nodes and update the position
@@ -110,6 +109,15 @@ class State(rx.State):
             if node["id"] in map_id_to_new_position:
                 new_position = map_id_to_new_position[node["id"]]
                 self.nodes[i]["position"] = new_position
+    
+    @rx.event
+    def on_edges_change(self, edge_changes: List[Dict[str, Any]]):
+        
+        for change in edge_changes:
+            if change["type"] == "select":
+                edge = next((edge for edge in self.edges if edge["id"] == change["id"]), None)
+                if edge:
+                    self.selected_edge_id = edge["id"]
 
 def graphArea() -> rx.Component:
     return rx.vstack(
@@ -121,6 +129,7 @@ def graphArea() -> rx.Component:
             nodes_connectable=True,
             on_connect=lambda e0: State.on_connect(e0),
             on_nodes_change=lambda e0: State.on_nodes_change(e0),
+            on_edges_change=lambda e0: State.on_edges_change(e0),
             nodes=State.nodes,
             edges=State.edges,
             fit_view=True,
@@ -145,7 +154,7 @@ def graphArea() -> rx.Component:
         ),
 
         rx.box(
-            rx.text(State.selected_node),
+            rx.text(State.selected_edge_id, font_size="lg"),
             background_color="orange",
             width="40%",
         ),

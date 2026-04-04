@@ -30,15 +30,9 @@ def control_panel() -> rx.Component:
             background_color="green",
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
-        rx.box(
-            rx.text(State.selected_node_id, font_size="lg"),
-            background_color="orange",
-            width="40%",
-        ),
-        rx.box(
-            rx.text(State.selected_edge_id, font_size="lg"),
-            background_color="orange",
-            width="40%",
+        rx.vstack(
+            width="100%",
+            background_color="green",    
         ),
         width="100%",
         height="100%",

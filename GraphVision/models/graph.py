@@ -3,9 +3,21 @@ import reflex as rx
 from ..types import Point, Graph
 from .point import PointState
 from ..utils import generate_random_string
-
 from collections import defaultdict
 from typing import Any, Dict, List
+
+selected_node_style = {
+    'background': '#9CA3AF',
+    'color': '#FFFFFF',
+    'border': '1px solid #6B7280',
+    'width': '150px',
+    'height': '50px',
+    'display': 'flex',
+    'alignItems': 'center',
+    'justifyContent': 'center',
+    'borderRadius': '5px',
+}
+unselected_node_style = {}
 
 class GraphState(rx.State):
     selected_edge_id: rx.Var[str] = "" 
@@ -16,6 +28,37 @@ class GraphState(rx.State):
     @rx.var
     def SelectedPoint(self) -> str:
         return self.selected_node_id  
+
+    def add_edge(self, source_id: str, target_id: str):
+        self.edges.append({
+            "id": f"e{source_id}-{target_id}",
+            "source": source_id,
+            "target": target_id,
+            "label": "",
+            "animated": False,
+        })
+
+    def arrange_nodes_in_row(self, parent_id: str):
+        parent_node = next((node for node in self.nodes if node["id"] == parent_id), None)
+        if parent_node is None:
+            return
+
+        child_edges = [edge for edge in self.edges if edge["source"] == parent_id]
+        num_children = len(child_edges)
+
+        if num_children == 0:
+            return
+
+        spacing = 200  
+        total_width = (num_children - 1) * spacing
+        start_x = parent_node["position"]["x"] - total_width / 2
+
+        for i, edge in enumerate(child_edges):
+            child_node_id = edge["target"]
+            child_node_index = next((index for index, node in enumerate(self.nodes) if node["id"] == child_node_id), None)
+            if child_node_index is not None:
+                self.nodes[child_node_index]["position"]["x"] = start_x + i * spacing
+                self.nodes[child_node_index]["position"]["y"] = parent_node["position"]["y"] + 150
 
     @rx.event
     def add_node(self):
@@ -38,14 +81,12 @@ class GraphState(rx.State):
             'draggable': True,
         }
         self.nodes.append(new_node)
-        if parent_node is not None:
-            self.edges.append({
-                "id": f"e{parent_node['id']}-{new_node['id']}",
-                "source": parent_node["id"],
-                "target": new_node["id"],
-                "label": generate_random_string(10, use_digits=True),
-                "animated": False,
-            })
+        if parent_node is None:
+            self.selected_node_id = new_node["id"]
+            new_node["style"] = selected_node_style
+        else:
+            self.add_edge(parent_node["id"], new_node["id"])     
+            self.arrange_nodes_in_row(parent_node["id"])
 
     @rx.event
     def delete_node(self, node_id: str):
@@ -66,14 +107,7 @@ class GraphState(rx.State):
             if edge["id"] == f"e{new_edge['source']}-{new_edge['target']}":
                 del self.edges[i]
                 break
-
-        self.edges.append({
-            "id": f"e{new_edge['source']}-{new_edge['target']}",
-            "source": new_edge["source"],
-            "target": new_edge["target"],
-            "label": generate_random_string(10, use_digits=True),
-            "animated": False,
-        })
+        self.add_edge(new_edge["source"], new_edge["target"])
 
     @rx.event
     def on_nodes_change(self, node_changes: List[Dict[str, Any]]):
@@ -85,19 +119,9 @@ class GraphState(rx.State):
                 node = next((node for node in self.nodes if node["id"] == change["id"]), None)
                 selected_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
                 if selected_node:
-                    selected_node["style"] = {}
+                    selected_node["style"] = unselected_node_style
                 if node:
-                    node["style"] = {
-                        'background': '#9CA3AF',
-                        'color': '#FFFFFF',
-                        'border': '1px solid #6B7280',
-                        'width': '150px',
-                        'height': '50px',
-                        'display': 'flex',
-                        'alignItems': 'center',
-                        'justifyContent': 'center',
-                        'borderRadius': '5px',
-                    }
+                    node["style"] = selected_node_style
                     self.selected_node_id = node["id"]
 
         for i, node in enumerate(self.nodes):

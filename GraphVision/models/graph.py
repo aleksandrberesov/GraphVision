@@ -22,12 +22,15 @@ selected_node_style = {
 }
 unselected_node_style = {}
 
+untitled_name = "Untitled Graph"
+
 class GraphState(rx.State):
-    selected_edge_id: rx.Var[str] = "" 
-    selected_node_id: rx.Var[str] = ""
+    selected_edge_id: str =  ""  
+    selected_node_id: str =  ""
     nodes: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
-    title: rx.Var[str] = "Untitled Graph"   
+    title: str = untitled_name  
+    uploaded_files: list[str] = []
   
     def create_default_node(self) -> Dict[str, Any]:
         return {
@@ -96,6 +99,7 @@ class GraphState(rx.State):
             with path.open("wb") as f:
                 f.write(data)
             self.uploaded_files.append(file.name)
+
     @rx.event
     def add_node(self):
         new_node = self.create_default_node()

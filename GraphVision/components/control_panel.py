@@ -1,5 +1,6 @@
 import reflex as rx
 from ..models import GraphState as State
+from .upload_box import upload_box
 
 def control_panel() -> rx.Component:
     return rx.vstack(
@@ -41,17 +42,7 @@ def control_panel() -> rx.Component:
                 on_click=State.save_to_file,
                 width="100%",
             ),
-            rx.box(
-                rx.upload(id="upload"),
-                rx.button(
-                    "Upload",
-                    on_click=State.handle_upload(
-                        rx.upload_files("upload")
-                    ),
-                ),
-                width="100%",
-            ),
-
+            upload_box(),
             width="100%",   
         ),
         width="100%",

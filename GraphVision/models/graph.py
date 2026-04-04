@@ -30,8 +30,8 @@ class GraphState(rx.State):
     nodes: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
     title: str = untitled_name  
-    uploaded_files: list[str] = []
-  
+    uploaded_file: str = ""
+
     def create_default_node(self) -> Dict[str, Any]:
         return {
             'id': generate_random_string(10, use_digits=True),
@@ -98,7 +98,7 @@ class GraphState(rx.State):
             path = rx.get_upload_dir() / file.name
             with path.open("wb") as f:
                 f.write(data)
-            self.uploaded_files.append(file.name)
+            self.uploaded_file = str(file.name)
 
     @rx.event
     def add_node(self):

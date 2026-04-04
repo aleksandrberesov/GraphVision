@@ -5,4 +5,5 @@ __pycache__/
 .states
 .web
 node_modules
-.dev
+.dev/
+uploaded_files/

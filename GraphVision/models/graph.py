@@ -28,7 +28,19 @@ class GraphState(rx.State):
     @rx.var
     def SelectedPoint(self) -> str:
         return self.selected_node_id  
-
+    def create_default_node(self) -> Dict[str, Any]:
+        return {
+            'id': generate_random_string(10, use_digits=True),
+            'type': 'default',
+            'data': {
+                'label': generate_random_string(10, use_digits=True),
+            },
+            'position': {
+                'x': 0,
+                'y': 0,
+            },
+            'draggable': True,
+        }
     def add_edge(self, source_id: str, target_id: str):
         self.edges.append({
             "id": f"e{source_id}-{target_id}",
@@ -62,25 +74,9 @@ class GraphState(rx.State):
 
     @rx.event
     def add_node(self):
-        parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None) 
-
-        if parent_node is None:
-            base_x, base_y = 0, 0
-        else:
-            base_x = parent_node.get("position", {}).get("x", 0)
-            base_y = parent_node.get("position", {}).get("y", 0)
-
-        new_node = {
-            'id': generate_random_string(10, use_digits=True),
-            'type': 'default',
-            'data': {'label': generate_random_string(10, use_digits=True),},
-            'position': {
-                'x': base_x + 100,
-                'y': base_y + 100,
-            },
-            'draggable': True,
-        }
+        new_node = self.create_default_node()
         self.nodes.append(new_node)
+        parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None) 
         if parent_node is None:
             self.selected_node_id = new_node["id"]
             new_node["style"] = selected_node_style

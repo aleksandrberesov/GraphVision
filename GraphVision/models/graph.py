@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import reflex as rx
 
 from ..types import Point, Graph
@@ -24,10 +27,8 @@ class GraphState(rx.State):
     selected_node_id: rx.Var[str] = ""
     nodes: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
- 
-    @rx.var
-    def SelectedPoint(self) -> str:
-        return self.selected_node_id  
+    title: rx.Var[str] = "Untitled Graph"   
+  
     def create_default_node(self) -> Dict[str, Any]:
         return {
             'id': generate_random_string(10, use_digits=True),
@@ -49,7 +50,6 @@ class GraphState(rx.State):
             "label": "",
             "animated": False,
         })
-
     def arrange_nodes_in_row(self, parent_id: str):
         parent_node = next((node for node in self.nodes if node["id"] == parent_id), None)
         if parent_node is None:
@@ -71,7 +71,31 @@ class GraphState(rx.State):
             if child_node_index is not None:
                 self.nodes[child_node_index]["position"]["x"] = start_x + i * spacing
                 self.nodes[child_node_index]["position"]["y"] = parent_node["position"]["y"] + 150
+    
+    @rx.event
+    def set_name(self, name: str):
+        self.title = name
 
+    @rx.event
+    def save_to_file(self):
+        return rx.download(
+            data=json.dumps({
+                "nodes": self.nodes, 
+                "edges": self.edges,
+                "selected_node_id": self.selected_node_id,
+                "selected_edge_id": self.selected_edge_id,
+            }),
+            filename=f"{self.title}.json"
+        )
+
+    @rx.event
+    async def handle_upload(self, files: list[rx.UploadFile]):
+        for file in files:
+            data = await file.read()
+            path = rx.get_upload_dir() / file.name
+            with path.open("wb") as f:
+                f.write(data)
+            self.uploaded_files.append(file.name)
     @rx.event
     def add_node(self):
         new_node = self.create_default_node()

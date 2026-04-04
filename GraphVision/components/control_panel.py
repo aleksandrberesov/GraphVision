@@ -3,6 +3,11 @@ from ..models import GraphState as State
 
 def control_panel() -> rx.Component:
     return rx.vstack(
+        rx.text("Enter name:"),
+        rx.input(
+            placeholder="untitled graph",
+            on_change=State.set_name,   
+        ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
             rx.button(
@@ -25,14 +30,29 @@ def control_panel() -> rx.Component:
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
             rx.text("Selected Node Path:", font_size="md", font_weight="bold"),
-            height="50%",
+            height="20%",
             width="100%",
             background_color="green",
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
-            width="100%",
-            background_color="green",    
+             rx.button(
+                "Download file",
+                on_click=State.save_to_file,
+                width="100%",
+            ),
+            rx.box(
+                rx.upload(id="upload"),
+                rx.button(
+                    "Upload",
+                    on_click=State.handle_upload(
+                        rx.upload_files("upload")
+                    ),
+                ),
+                width="100%",
+            ),
+
+            width="100%",   
         ),
         width="100%",
         height="100%",

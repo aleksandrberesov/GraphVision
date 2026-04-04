@@ -1,3 +1,5 @@
 {
-    "svn.ignoreMissingSvnWarning": true
+   "python.analysis.typeCheckingMode": "basic"
+
+
 }

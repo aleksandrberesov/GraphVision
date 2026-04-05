@@ -20,7 +20,7 @@ def upload_box():
                 style={"fontWeight": "bold", "color": "#1d4ed8"},
             ),
             id="upload",
-            on_drop = State.handle_upload(),
+            on_drop = State.handle_upload(rx.upload_files("upload")),
             multiple = False,
             border="1px dotted rgb(107,99,246)",
             padding="5em",

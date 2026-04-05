@@ -4,9 +4,9 @@ from .upload_box import upload_box
 
 def control_panel() -> rx.Component:
     return rx.vstack(
-        rx.text("Enter name:"),
         rx.input(
-            placeholder="untitled graph",
+            value=State.title,
+            placeholder="enter name",
             on_change=State.set_name,   
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
@@ -30,7 +30,7 @@ def control_panel() -> rx.Component:
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
-            rx.text("Selected Node Path:", font_size="md", font_weight="bold"),
+            rx.text("Selected Node property:", font_size="md", font_weight="bold"),
             height="20%",
             width="100%",
             background_color="green",

@@ -29,7 +29,7 @@ class GraphState(rx.State):
     selected_node_id: str =  ""
     nodes: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
-    title: str = untitled_name  
+    title: str = ""  
     uploaded_file: str = ""
 
     def create_default_node(self) -> Dict[str, Any]:
@@ -88,7 +88,7 @@ class GraphState(rx.State):
                 "selected_node_id": self.selected_node_id,
                 "selected_edge_id": self.selected_edge_id,
             }),
-            filename=f"{self.title}.json"
+            filename=f"{self.title if self.title.strip() else untitled_name}.json"
         )
 
     @rx.event
@@ -99,6 +99,13 @@ class GraphState(rx.State):
             with path.open("wb") as f:
                 f.write(data)
             self.uploaded_file = str(file.name)
+            with open(path, "r") as f:
+                graph_data = json.load(f)
+                self.nodes = graph_data.get("nodes", [])
+                self.edges = graph_data.get("edges", [])
+                self.selected_node_id = graph_data.get("selected_node_id", "")
+                self.selected_edge_id = graph_data.get("selected_edge_id", "")
+                self.title = file.name.rsplit(".", 1)[0]
 
     @rx.event
     def add_node(self):

@@ -106,6 +106,9 @@ class GraphState(rx.State):
                 self.selected_node_id = graph_data.get("selected_node_id", "")
                 self.selected_edge_id = graph_data.get("selected_edge_id", "")
                 self.title = file.name.rsplit(".", 1)[0]
+            if path.exists():
+                path.unlink()
+            
 
     @rx.event
     def add_node(self):

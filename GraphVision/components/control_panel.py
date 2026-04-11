@@ -1,5 +1,6 @@
 import reflex as rx
 from ..models import GraphState as State
+from ..models import NodeState as Node
 from .upload_box import upload_box
 
 def control_panel() -> rx.Component:
@@ -30,10 +31,20 @@ def control_panel() -> rx.Component:
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
-            rx.text("Selected Node property:", font_size="md", font_weight="bold"),
-            height="20%",
+            rx.text(f"Selected Node: {Node.id}", font_size="md", font_weight="bold", color="black"),
+            rx.hstack(
+                rx.text(f"Title : ", font_size="md", font_weight="bold", color="black"),
+                rx.input(
+                    value=Node.title,
+                    on_change=Node.update_title,
+                    placeholder="no title",
+                    color="black",
+                    background_color="garis.100",  
+                ),
+            ),
+            height="40%",
             width="100%",
-            background_color="green",
+            
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(

@@ -9,12 +9,12 @@ def main_page() -> rx.Component:
     return rx.flex(
         rx.box(
             control_panel(),
-            width="20%",
+            width="30%",
         ),
         rx.spacer(),
         rx.box(
             plot_layout(), 
-            width="80%",   
+            width="70%",   
         ),
         width="100vw",
         height="100vh",

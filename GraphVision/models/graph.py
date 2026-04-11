@@ -3,8 +3,6 @@ from pathlib import Path
 
 import reflex as rx
 
-from ..types import Point, Graph
-from .point import PointState
 from ..utils import generate_random_string
 from collections import defaultdict
 from typing import Any, Dict, List
@@ -34,10 +32,10 @@ class GraphState(rx.State):
 
     def create_default_node(self) -> Dict[str, Any]:
         return {
-            'id': generate_random_string(10, use_digits=True),
-            'type': 'default',
+            'id': generate_random_string(16, use_digits=True),
+            'type': 'input',
             'data': {
-                'label': generate_random_string(10, use_digits=True),
+                'label': '',
             },
             'position': {
                 'x': 0,
@@ -74,7 +72,25 @@ class GraphState(rx.State):
             if child_node_index is not None:
                 self.nodes[child_node_index]["position"]["x"] = start_x + i * spacing
                 self.nodes[child_node_index]["position"]["y"] = parent_node["position"]["y"] + 150
+
     
+    def select_node(self, node_id: str):
+        self.selected_node_id = node_id
+        selected_node = next((node for node in self.nodes if node["id"] == node_id), None)       
+        from .node import NodeState
+        NodeState.set_node(selected_node)      
+
+    @rx.event
+    def update_node_label(self, node_id: str | None, new_label: str):
+        selected_node = next((node for node in self.nodes if node["id"] == node_id), None) 
+        if selected_node:
+            selected_node["data"]["label"] = new_label
+        if node_id is not None:
+            for node in self.nodes:
+                if node["id"] == node_id:
+                    node["data"]["label"] = new_label
+                    break
+
     @rx.event
     def set_name(self, name: str):
         self.title = name
@@ -95,6 +111,8 @@ class GraphState(rx.State):
     async def handle_upload(self, files: list[rx.UploadFile]):
         for file in files:
             data = await file.read()
+            if file.name is None:
+                continue
             path = rx.get_upload_dir() / file.name
             with path.open("wb") as f:
                 f.write(data)
@@ -103,7 +121,7 @@ class GraphState(rx.State):
                 graph_data = json.load(f)
                 self.nodes = graph_data.get("nodes", [])
                 self.edges = graph_data.get("edges", [])
-                self.selected_node_id = graph_data.get("selected_node_id", "")
+                self.select_node(graph_data.get("selected_node_id", ""))
                 self.selected_edge_id = graph_data.get("selected_edge_id", "")
                 self.title = file.name.rsplit(".", 1)[0]
             if path.exists():
@@ -116,7 +134,7 @@ class GraphState(rx.State):
         self.nodes.append(new_node)
         parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None) 
         if parent_node is None:
-            self.selected_node_id = new_node["id"]
+            self.select_node(new_node["id"])
             new_node["style"] = selected_node_style
         else:
             self.add_edge(parent_node["id"], new_node["id"])     
@@ -156,7 +174,7 @@ class GraphState(rx.State):
                     selected_node["style"] = unselected_node_style
                 if node:
                     node["style"] = selected_node_style
-                    self.selected_node_id = node["id"]
+                    self.select_node(node["id"])
 
         for i, node in enumerate(self.nodes):
             if node["id"] in map_id_to_new_position:

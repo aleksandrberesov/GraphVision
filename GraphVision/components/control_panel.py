@@ -35,8 +35,8 @@ def control_panel() -> rx.Component:
             rx.hstack(
                 rx.text(f"Title : ", font_size="md", font_weight="bold", color="black"),
                 rx.input(
-                    value=Node.title,
-                    on_change=Node.update_title,
+                    value=Node.label,
+                    on_change=Node.update_label,
                     placeholder="no title",
                     color="black",
                     background_color="garis.100",  

@@ -73,12 +73,11 @@ class GraphState(rx.State):
                 self.nodes[child_node_index]["position"]["x"] = start_x + i * spacing
                 self.nodes[child_node_index]["position"]["y"] = parent_node["position"]["y"] + 150
 
-    
-    def select_node(self, node_id: str):
+    def _select_node(self, node_id: str):
         self.selected_node_id = node_id
         selected_node = next((node for node in self.nodes if node["id"] == node_id), None)       
         from .node import NodeState
-        NodeState.set_node(selected_node)      
+        return NodeState.set_node(selected_node)      
 
     @rx.event
     def update_node_label(self, node_id: str | None, new_label: str):
@@ -121,9 +120,9 @@ class GraphState(rx.State):
                 graph_data = json.load(f)
                 self.nodes = graph_data.get("nodes", [])
                 self.edges = graph_data.get("edges", [])
-                self.select_node(graph_data.get("selected_node_id", ""))
                 self.selected_edge_id = graph_data.get("selected_edge_id", "")
                 self.title = file.name.rsplit(".", 1)[0]
+                return self._select_node(graph_data.get("selected_node_id", ""))
             if path.exists():
                 path.unlink()
             
@@ -134,8 +133,8 @@ class GraphState(rx.State):
         self.nodes.append(new_node)
         parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None) 
         if parent_node is None:
-            self.select_node(new_node["id"])
             new_node["style"] = selected_node_style
+            return self._select_node(new_node["id"])
         else:
             self.add_edge(parent_node["id"], new_node["id"])     
             self.arrange_nodes_in_row(parent_node["id"])
@@ -174,7 +173,7 @@ class GraphState(rx.State):
                     selected_node["style"] = unselected_node_style
                 if node:
                     node["style"] = selected_node_style
-                    self.select_node(node["id"])
+                    return self._select_node(node["id"])
 
         for i, node in enumerate(self.nodes):
             if node["id"] in map_id_to_new_position:

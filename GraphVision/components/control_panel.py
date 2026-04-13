@@ -13,20 +13,12 @@ def control_panel() -> rx.Component:
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
             rx.button(
-                "Clear graph",
-                on_click=State.clear_graph,
+                "Create new graph",
+                on_click=State.create_new_graph,
                 width="100%",
             ),
-            rx.button(
-                "Add node",
-                on_click=State.add_node,
-                width="100%",
-            ),
-            rx.button(
-                "Delete selected node",
-                on_click=State.delete_node(State.selected_node_id),
-                width="100%",
-            ),
+            
+
             width="100%",
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
@@ -42,9 +34,44 @@ def control_panel() -> rx.Component:
                     background_color="garis.100",  
                 ),
             ),
+            rx.cond(
+                Node.id == "None",
+                rx.text("No node selected", color="red.500", font_size="sm"),
+                rx.vstack(
+                    rx.button(
+                        "Settings",
+                        on_click=State.add_node,
+                        disabled=True,
+                        width="100%",
+                    ),
+                    rx.button(
+                        "Fit",
+                        on_click=State.add_node,
+                        disabled=True, 
+                        width="100%",
+                    ),
+                    rx.button(
+                        "Transform",
+                        on_click=State.add_node,
+                        disabled=True, 
+                        width="100%",
+                    ),
+                    rx.button(
+                        "Add node",
+                        on_click=State.add_node,
+                        disabled=True, 
+                        width="100%",
+                    ),
+                    rx.button(
+                        "Delete selected node",
+                        on_click=State.delete_node(State.selected_node_id),
+                        disabled=True, 
+                        width="100%",
+                    ),
+                ),
+            ),
             height="40%",
             width="100%",
-            
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(

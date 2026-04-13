@@ -33,9 +33,10 @@ class GraphState(rx.State):
     def create_default_node(self) -> Dict[str, Any]:
         return {
             'id': generate_random_string(16, use_digits=True),
-            'type': 'input',
+            'type': 'default',
             'data': {
                 'label': '',
+                'status': '',
             },
             'position': {
                 'x': 0,
@@ -125,7 +126,6 @@ class GraphState(rx.State):
                 return self._select_node(graph_data.get("selected_node_id", ""))
             if path.exists():
                 path.unlink()
-            
 
     @rx.event
     def add_node(self):
@@ -146,11 +146,18 @@ class GraphState(rx.State):
             edge for edge in self.edges
             if edge["source"] != node_id and edge["target"] != node_id
         ]
+        return self._select_node("")
 
     @rx.event
     def clear_graph(self):
         self.nodes = []  
         self.edges = []  
+
+    @rx.event
+    def create_new_graph(self):
+        self.clear_graph()
+        self.title = ""
+        self.add_node()
 
     @rx.event
     def on_connect(self, new_edge):

@@ -5,12 +5,13 @@ from .graph import GraphState
 class NodeState(rx.State):
     id: str | None = ""
     label: str = ""
+    status: str = ""
 
     @rx.event
     def set_node(self, node: Dict[str, Any] | None) -> None:
         if node is None:
             self.id = "None"
-            self.title = "Unkhown"
+            self.label = "Unkhown"
         else: 
             self.id = node.get("id", "")
             self.label = node.get("data", {}).get("label", "")

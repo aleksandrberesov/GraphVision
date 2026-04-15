@@ -35,7 +35,7 @@ def control_panel() -> rx.Component:
                 ),
             ),
             rx.cond(
-                Node.id == "None",
+                (Node.id == "None") | (Node.id == None),
                 rx.text("No node selected", color="red.500", font_size="sm"),
                 rx.vstack(
                     rx.button(
@@ -65,9 +65,11 @@ def control_panel() -> rx.Component:
                     rx.button(
                         "Delete selected node",
                         on_click=State.delete_node(State.selected_node_id),
-                        disabled=True, 
+                        disabled=False, 
                         width="100%",
                     ),
+                    width="100%",
+                    bg="lightgray",
                 ),
             ),
             height="40%",

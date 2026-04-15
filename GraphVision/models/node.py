@@ -7,6 +7,14 @@ class NodeState(rx.State):
     label: str = ""
     status: str = ""
 
+    @rx.var
+    def is_setted(self) -> bool:
+        return self.status == "setted"
+    
+    @rx.event
+    def set_status(self, status: str):
+        self.status = status    
+
     @rx.event
     def set_node(self, node: Dict[str, Any] | None) -> None:
         if node is None:

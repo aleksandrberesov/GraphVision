@@ -40,26 +40,26 @@ def control_panel() -> rx.Component:
                 rx.vstack(
                     rx.button(
                         "Settings",
-                        on_click=State.add_node,
-                        disabled=True,
+                        on_click=Node.update_status("setted"),
+                        disabled=Node.is_setted,
                         width="100%",
                     ),
                     rx.button(
                         "Fit",
-                        on_click=State.add_node,
-                        disabled=True, 
+                        on_click=Node.update_status("fitted"),
+                        disabled=Node.is_fitted, 
                         width="100%",
                     ),
                     rx.button(
                         "Transform",
-                        on_click=State.add_node,
-                        disabled=True, 
+                        on_click=Node.update_status("trasformed"),
+                        disabled=Node.is_trasformed, 
                         width="100%",
                     ),
                     rx.button(
                         "Add node",
                         on_click=State.add_node,
-                        disabled=True, 
+                        disabled=Node.is_complited, 
                         width="100%",
                     ),
                     rx.button(

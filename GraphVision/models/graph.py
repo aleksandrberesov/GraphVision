@@ -7,19 +7,6 @@ from ..utils import generate_random_string
 from collections import defaultdict
 from typing import Any, Dict, List
 
-selected_node_style = {
-    'background': '#9CA3AF',
-    'color': '#FFFFFF',
-    'border': '1px solid #6B7280',
-    'width': '150px',
-    'height': '50px',
-    'display': 'flex',
-    'alignItems': 'center',
-    'justifyContent': 'center',
-    'borderRadius': '5px',
-}
-unselected_node_style = {}
-
 untitled_name = "Untitled Graph"
 
 class GraphState(rx.State):
@@ -29,6 +16,18 @@ class GraphState(rx.State):
     edges: List[Dict[str, Any]] = []
     title: str = ""  
     uploaded_file: str = ""
+
+    def _get_color_by_status(self, status: str) -> str:
+        if status == "setted":
+            return "#34D399"
+        elif status == "fitted":
+            return "#3B82F6"
+        elif status == "trasformed":
+            return "#F87171"
+        elif status == "complited":
+            return "#9CA3AF"
+        else:
+            return "#FFFFFF"
 
     def create_default_node(self) -> Dict[str, Any]:
         return {
@@ -43,6 +42,16 @@ class GraphState(rx.State):
                 'y': 0,
             },
             'draggable': True,
+            'style': {
+                'background': '#FFFFFF',
+                'color': '#000000',
+                'border': '1px solid #000000',
+                'width': '150px',
+                'height': '50px',
+                'display': 'flex',
+                'alignItems': 'center',
+                'justifyContent': 'center',
+            },
         }
     def add_edge(self, source_id: str, target_id: str):
         self.edges.append({
@@ -85,11 +94,13 @@ class GraphState(rx.State):
         selected_node = next((node for node in self.nodes if node["id"] == node_id), None) 
         if selected_node:
             selected_node["data"]["label"] = new_label
-        if node_id is not None:
-            for node in self.nodes:
-                if node["id"] == node_id:
-                    node["data"]["label"] = new_label
-                    break
+    
+    @rx.event
+    def update_node_status(self, node_id: str | None, new_status: str):
+        selected_node = next((node for node in self.nodes if node["id"] == node_id), None) 
+        if selected_node:
+            selected_node["data"]["status"] = new_status
+            selected_node["style"]["background"] = self._get_color_by_status(new_status)
 
     @rx.event
     def set_name(self, name: str):
@@ -133,7 +144,7 @@ class GraphState(rx.State):
         self.nodes.append(new_node)
         parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None) 
         if parent_node is None:
-            new_node["style"] = selected_node_style
+            new_node["style"]["background"] = "#9CA3AF"
             return self._select_node(new_node["id"])
         else:
             self.add_edge(parent_node["id"], new_node["id"])     
@@ -177,9 +188,9 @@ class GraphState(rx.State):
                 node = next((node for node in self.nodes if node["id"] == change["id"]), None)
                 selected_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
                 if selected_node:
-                    selected_node["style"] = unselected_node_style
+                    selected_node["style"]["background"] = self._get_color_by_status(selected_node["data"].get("status", ""))
                 if node:
-                    node["style"] = selected_node_style
+                    node["style"]["background"] = "#9CA3AF"
                     return self._select_node(node["id"])
 
         for i, node in enumerate(self.nodes):

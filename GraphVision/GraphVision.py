@@ -8,4 +8,4 @@ from .pages import (
 
 app = rx.App(theme=rx.theme(accent_color="green"))
 
-app.add_page(main_page, route="/", title="Main")
+app.add_page(main_page, route="/", title="GraphVision")

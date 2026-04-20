@@ -7,3 +7,5 @@ __pycache__/
 node_modules
 .dev/
 uploaded_files/
+*.egg-info/
+**/*.egg-info/

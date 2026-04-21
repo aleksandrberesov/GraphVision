@@ -11,6 +11,9 @@ dependencies = [
     "reflex>=0.8.24.post1",  
 ]
 
+[project.scripts]
+graphvision = "GraphVision.runner:run"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["GraphVision*"]

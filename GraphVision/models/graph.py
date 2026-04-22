@@ -1,20 +1,20 @@
 import json
 from pathlib import Path
+from typing import Any, Dict, List
 
 import reflex as rx
 
 from ..utils import generate_random_string
 from collections import defaultdict
-from typing import Any, Dict, List
 
 untitled_name = "Untitled Graph"
 
 class GraphState(rx.State):
-    selected_edge_id: str =  ""  
+    selected_edge_id: str =  ""
     selected_node_id: str =  ""
     nodes: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
-    title: str = ""  
+    title: str = ""
     uploaded_file: str = ""
 
     def _get_color_by_status(self, status: str) -> str:
@@ -36,6 +36,8 @@ class GraphState(rx.State):
             'data': {
                 'label': '',
                 'status': '',
+                'transformation_class': '',
+                'transformation_config': {},
             },
             'position': {
                 'x': 0,
@@ -53,6 +55,31 @@ class GraphState(rx.State):
                 'justifyContent': 'center',
             },
         }
+
+    def _create_root_node(self, vertex_id: str) -> Dict[str, Any]:
+        return {
+            "id": vertex_id,
+            "type": "default",
+            "data": {
+                "label": "Root",
+                "status": "setted",
+                "transformation_class": "",
+                "transformation_config": {},
+            },
+            "position": {"x": 0, "y": 0},
+            "draggable": True,
+            "style": {
+                "background": "#34D399",
+                "color": "#000000",
+                "border": "2px solid #059669",
+                "width": "150px",
+                "height": "50px",
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "center",
+            },
+        }
+
     def add_edge(self, source_id: str, target_id: str):
         self.edges.append({
             "id": f"e{source_id}-{target_id}",
@@ -61,6 +88,7 @@ class GraphState(rx.State):
             "label": "",
             "animated": False,
         })
+
     def arrange_nodes_in_row(self, parent_id: str):
         parent_node = next((node for node in self.nodes if node["id"] == parent_id), None)
         if parent_node is None:
@@ -72,7 +100,7 @@ class GraphState(rx.State):
         if num_children == 0:
             return
 
-        spacing = 200  
+        spacing = 200
         total_width = (num_children - 1) * spacing
         start_x = parent_node["position"]["x"] - total_width / 2
 
@@ -85,19 +113,19 @@ class GraphState(rx.State):
 
     def _select_node(self, node_id: str):
         self.selected_node_id = node_id
-        selected_node = next((node for node in self.nodes if node["id"] == node_id), None)       
+        selected_node = next((node for node in self.nodes if node["id"] == node_id), None)
         from .node import NodeState
-        return NodeState.set_node(selected_node)      
+        return NodeState.set_node(selected_node)
 
     @rx.event
     def update_node_label(self, node_id: str | None, new_label: str):
-        selected_node = next((node for node in self.nodes if node["id"] == node_id), None) 
+        selected_node = next((node for node in self.nodes if node["id"] == node_id), None)
         if selected_node:
             selected_node["data"]["label"] = new_label
-    
+
     @rx.event
     def update_node_status(self, node_id: str | None, new_status: str):
-        selected_node = next((node for node in self.nodes if node["id"] == node_id), None) 
+        selected_node = next((node for node in self.nodes if node["id"] == node_id), None)
         if selected_node:
             selected_node["data"]["status"] = new_status
             selected_node["style"]["background"] = self._get_color_by_status(new_status)
@@ -110,13 +138,45 @@ class GraphState(rx.State):
     def save_to_file(self):
         return rx.download(
             data=json.dumps({
-                "nodes": self.nodes, 
+                "nodes": self.nodes,
                 "edges": self.edges,
                 "selected_node_id": self.selected_node_id,
                 "selected_edge_id": self.selected_edge_id,
             }),
             filename=f"{self.title if self.title.strip() else untitled_name}.json"
         )
+
+    # ------------------------------------------------------------------
+    # Upload handling
+    # ------------------------------------------------------------------
+
+    def _load_json_graph(self, path: Path, file_name: str):
+        with open(path, "r") as f:
+            graph_data = json.load(f)
+        self.nodes = graph_data.get("nodes", [])
+        self.edges = graph_data.get("edges", [])
+        self.selected_edge_id = graph_data.get("selected_edge_id", "")
+        self.title = file_name.rsplit(".", 1)[0]
+        path.unlink(missing_ok=True)
+        return self._select_node(graph_data.get("selected_node_id", ""))
+
+    def _attach_data_file(self, path: Path, file_name: str, ext: str):
+        from . import pipeline_hooks
+        result = pipeline_hooks.attach_data(
+            self.router.session.client_token, str(path), ext
+        )
+        if result is None:
+            return
+        root_vertex_id, stem = result
+        # Create or update the root node in the UI
+        existing = next((n for n in self.nodes if n["id"] == root_vertex_id), None)
+        if existing is None:
+            self.nodes = [self._create_root_node(root_vertex_id)]
+            self.edges = []
+        else:
+            existing["data"]["label"] = stem
+        self.title = stem
+        return self.refresh_statuses_from_pipeline()
 
     @rx.event
     async def handle_upload(self, files: list[rx.UploadFile]):
@@ -128,26 +188,26 @@ class GraphState(rx.State):
             with path.open("wb") as f:
                 f.write(data)
             self.uploaded_file = str(file.name)
-            with open(path, "r") as f:
-                graph_data = json.load(f)
-                self.nodes = graph_data.get("nodes", [])
-                self.edges = graph_data.get("edges", [])
-                self.selected_edge_id = graph_data.get("selected_edge_id", "")
-                self.title = file.name.rsplit(".", 1)[0]
-                return self._select_node(graph_data.get("selected_node_id", ""))
-            if path.exists():
-                path.unlink()
+            ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
+            if ext == "json":
+                return self._load_json_graph(path, file.name)
+            if ext in ("csv", "parquet"):
+                return self._attach_data_file(path, file.name, ext)
+
+    # ------------------------------------------------------------------
+    # Node / edge operations
+    # ------------------------------------------------------------------
 
     @rx.event
     def add_node(self):
         new_node = self.create_default_node()
         self.nodes.append(new_node)
-        parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None) 
+        parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
         if parent_node is None:
             new_node["style"]["background"] = "#9CA3AF"
             return self._select_node(new_node["id"])
         else:
-            self.add_edge(parent_node["id"], new_node["id"])     
+            self.add_edge(parent_node["id"], new_node["id"])
             self.arrange_nodes_in_row(parent_node["id"])
 
     @rx.event
@@ -161,14 +221,25 @@ class GraphState(rx.State):
 
     @rx.event
     def clear_graph(self):
-        self.nodes = []  
-        self.edges = []  
+        self.nodes = []
+        self.edges = []
 
     @rx.event
     def create_new_graph(self):
-        self.clear_graph()
+        self.nodes = []
+        self.edges = []
         self.title = ""
-        self.add_node()
+        self.selected_node_id = ""
+        self.selected_edge_id = ""
+
+        from . import pipeline_hooks
+        result = pipeline_hooks.new_pipeline(self.router.session.client_token)
+        if result is not None:
+            root_vertex_id, _ = result
+            self.nodes.append(self._create_root_node(root_vertex_id))
+            return self._select_node(root_vertex_id)
+        else:
+            self.add_node()
 
     @rx.event
     def on_connect(self, new_edge):
@@ -197,7 +268,7 @@ class GraphState(rx.State):
             if node["id"] in map_id_to_new_position:
                 new_position = map_id_to_new_position[node["id"]]
                 self.nodes[i]["position"] = new_position
-    
+
     @rx.event
     def on_edges_change(self, edge_changes: List[Dict[str, Any]]):
         for change in edge_changes:
@@ -205,3 +276,76 @@ class GraphState(rx.State):
                 edge = next((edge for edge in self.edges if edge["id"] == change["id"]), None)
                 if edge:
                     self.selected_edge_id = edge["id"]
+
+    # ------------------------------------------------------------------
+    # Pipeline sync events (UI ← pipeline)
+    # ------------------------------------------------------------------
+
+    @rx.event
+    def sync_from_pipeline(self):
+        """Reload nodes and edges from the attached PipelineGraph."""
+        from . import pipeline_hooks
+        result = pipeline_hooks.pipeline_to_ui(self.router.session.client_token)
+        if result is not None:
+            self.nodes, self.edges = result
+
+    @rx.event
+    def refresh_statuses_from_pipeline(self):
+        """Update node colours/statuses to reflect current vertex states."""
+        from . import pipeline_hooks
+        self.nodes = pipeline_hooks.sync_statuses(
+            self.router.session.client_token, self.nodes
+        )
+
+    # ------------------------------------------------------------------
+    # Pipeline operations triggered from the UI
+    # ------------------------------------------------------------------
+
+    @rx.event
+    def manifest_node(self, node_id: str):
+        """Fit and apply the transformation at node_id in the pipeline."""
+        from . import pipeline_hooks
+        ok = pipeline_hooks.manifest_vertex(self.router.session.client_token, node_id)
+        if ok:
+            return self.refresh_statuses_from_pipeline()
+
+    @rx.event
+    def add_transformation_node(self, transformation_class: str, config: Dict[str, Any]):
+        """Add a new node+transformation to both the UI and the pipeline."""
+        parent_id = self.selected_node_id
+        new_node = self.create_default_node()
+        new_node["data"]["transformation_class"] = transformation_class
+        new_node["data"]["transformation_config"] = config
+        self.nodes.append(new_node)
+
+        if parent_id and next((n for n in self.nodes if n["id"] == parent_id), None):
+            self.add_edge(parent_id, new_node["id"])
+            self.arrange_nodes_in_row(parent_id)
+
+        from . import pipeline_hooks
+        pipeline_hooks.add_transformation(
+            self.router.session.client_token,
+            parent_id,
+            transformation_class,
+            config,
+            new_node["id"],
+        )
+        return self._select_node(new_node["id"])
+
+    # ------------------------------------------------------------------
+    # Pipeline serialisation
+    # ------------------------------------------------------------------
+
+    @rx.event
+    def save_pipeline_yaml(self, path: str):
+        """Save the attached PipelineGraph to a YAML file."""
+        from . import pipeline_hooks
+        pipeline_hooks.save_yaml(self.router.session.client_token, path)
+
+    @rx.event
+    def load_pipeline_yaml(self, path: str):
+        """Load a PipelineGraph from YAML and sync the UI."""
+        from . import pipeline_hooks
+        result = pipeline_hooks.load_yaml(self.router.session.client_token, path)
+        if result is not None:
+            self.nodes, self.edges = result

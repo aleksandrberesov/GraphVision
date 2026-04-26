@@ -83,3 +83,8 @@ save_yaml: Callable[[str, str], None] = lambda _s, _p: None
 load_yaml: Callable[
     [str, str], Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]
 ] = lambda _s, _p: None
+
+# (class_name: str) -> Optional[Dict[str, Any]]
+# Return the param schema for a transformer's __init__.  Shape:
+#   {"class_name": str, "params": [{"name", "annotation", "required", "default"}, …]}
+describe_transformer: Callable[[str], Optional[Dict[str, Any]]] = lambda _: None

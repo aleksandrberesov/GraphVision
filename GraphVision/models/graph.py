@@ -115,7 +115,8 @@ class GraphState(rx.State):
         self.selected_node_id = node_id
         selected_node = next((node for node in self.nodes if node["id"] == node_id), None)
         from .node import NodeState
-        return NodeState.set_node(selected_node)
+        from .plot_state import PlotState
+        return [NodeState.set_node(selected_node), PlotState.load_for_node(node_id)]
 
     @rx.event
     def update_node_label(self, node_id: str | None, new_label: str):

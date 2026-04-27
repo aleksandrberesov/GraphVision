@@ -9,3 +9,4 @@ node_modules
 uploaded_files/
 *.egg-info/
 **/*.egg-info/
+transformers.log

@@ -1,11 +1,12 @@
 import reflex as rx
-from typing import Any, Dict
+from typing import Any, Dict, List
 from .graph import GraphState
 
 class NodeState(rx.State):
     id: str | None = ""
     label: str = ""
     status: str = ""
+    errors: List[str] = []
 
     @rx.var
     def is_setted(self) -> bool:
@@ -31,10 +32,11 @@ class NodeState(rx.State):
             self.id = "None"
             self.label = "Unkhown"
             self.status = ""
-        else: 
+        else:
             self.id = node.get("id", "")
             self.label = node.get("data", {}).get("label", "")
             self.status = node.get("data", {}).get("status", "")
+            self.errors = node.get("data", {}).get("errors", [])
 
     @rx.event
     def update_label(self, new_label: str):

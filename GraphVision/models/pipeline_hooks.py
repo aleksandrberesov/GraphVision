@@ -44,7 +44,7 @@ pipeline_to_ui: Callable[
 # Falls back to returning the original list unchanged.
 sync_statuses: Callable[
     [str, List[Dict[str, Any]]], List[Dict[str, Any]]
-] = lambda _s, nodes: nodes
+] = lambda _, nodes: nodes
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ sync_statuses: Callable[
 # no implementation is registered.
 attach_data: Callable[
     [str, str, str], Optional[Tuple[str, str]]
-] = lambda _s, _p, _e: None
+] = lambda *_: None
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ attach_data: Callable[
 
 # (session_id: str, node_id: str) -> bool
 # Fit and apply the transformation at node_id.  Returns True on success.
-manifest_vertex: Callable[[str, str], bool] = lambda _s, _n: False
+manifest_vertex: Callable[[str, str], bool] = lambda *_: False
 
 # (session_id: str, parent_id: str, class_name: str, config: Dict, ui_node_id: str) -> Optional[str]
 # Add a transformation to the pipeline.  Returns the vertex_id used (may equal
@@ -76,15 +76,29 @@ add_transformation: Callable[
 ] = lambda *_: None
 
 # (session_id: str, path: str) -> None
-save_yaml: Callable[[str, str], None] = lambda _s, _p: None
+save_yaml: Callable[[str, str], None] = lambda *_: None
 
 # (session_id: str, path: str) -> Optional[Tuple[List[Dict], List[Dict]]]
 # Load a pipeline from YAML, register it, return (nodes, edges).
 load_yaml: Callable[
     [str, str], Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]
-] = lambda _s, _p: None
+] = lambda *_: None
 
 # (class_name: str) -> Optional[Dict[str, Any]]
 # Return the param schema for a transformer's __init__.  Shape:
-#   {"class_name": str, "params": [{"name", "annotation", "required", "default"}, …]}
+#   {"class_name": str, "params": [{"name", "annotation", "required", "default", "is_list", "is_bool"}, …]}
 describe_transformer: Callable[[str], Optional[Dict[str, Any]]] = lambda _: None
+
+# (session_id: str, vertex_id: str) -> Optional[Dict[str, List[str]]]
+# Return visible column names grouped by type for a manifested vertex.
+# Returns None if vertex not found or not yet manifested.
+get_vertex_columns: Callable[[str, str], Optional[Dict[str, List[str]]]] = lambda *_: None
+
+# (session_id: str, vertex_id: str, column: str) -> Optional[Dict[str, Any]]
+# Compute or retrieve cached distribution for a column at a vertex.
+# Result keys: histogram (List[float]), kde (optional), statistics (Dict).
+compute_distribution: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
+
+# (session_id: str, vertex_id: str, method: str) -> Optional[Dict[str, Any]]
+# Compute or retrieve cached correlation matrix. Returns {col: {row: float}}.
+compute_correlation: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None

@@ -1,6 +1,8 @@
 import reflex as rx
 from ..models import GraphState as State
 from ..models import NodeState as Node
+from .config_panel import config_panel
+from .results_panel import results_panel
 from .upload_box import upload_box
 
 def control_panel() -> rx.Component:
@@ -59,14 +61,29 @@ def control_panel() -> rx.Component:
                     rx.button(
                         "Add node",
                         on_click=State.add_node,
-                        disabled=Node.is_complited, 
+                        disabled=Node.is_complited,
                         width="100%",
                     ),
+                    config_panel(),
+                    results_panel(),
                     rx.button(
                         "Delete selected node",
                         on_click=State.delete_node(State.selected_node_id),
-                        disabled=False, 
+                        disabled=False,
                         width="100%",
+                    ),
+                    rx.cond(
+                        Node.errors.length() > 0,
+                        rx.vstack(
+                            rx.text("Errors:", color="red", font_size="sm", font_weight="bold"),
+                            rx.foreach(
+                                Node.errors,
+                                lambda e: rx.text(e, color="red", font_size="xs"),
+                            ),
+                            width="100%",
+                            spacing="1",
+                        ),
+                        rx.fragment(),
                     ),
                     width="100%",
                     bg="lightgray",

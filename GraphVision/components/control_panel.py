@@ -73,7 +73,7 @@ def control_panel() -> rx.Component:
                         width="100%",
                     ),
                     rx.cond(
-                        Node.errors.length() > 0,
+                        Node.errors,
                         rx.vstack(
                             rx.text("Errors:", color="red", font_size="sm", font_weight="bold"),
                             rx.foreach(

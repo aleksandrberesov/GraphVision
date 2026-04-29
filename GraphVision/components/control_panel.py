@@ -52,12 +52,6 @@ def control_panel() -> rx.Component:
                         disabled=Node.is_trasformed, 
                         width="100%",
                     ),
-                    rx.button(
-                        "Add node",
-                        on_click=State.add_node,
-                        disabled=Node.is_complited,
-                        width="100%",
-                    ),
                     config_panel(),
                     results_panel(),
                     rx.button(

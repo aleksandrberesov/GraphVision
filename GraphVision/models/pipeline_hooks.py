@@ -51,12 +51,12 @@ sync_statuses: Callable[
 # Data attachment
 # ---------------------------------------------------------------------------
 
-# (session_id: str, file_path: str, ext: str) -> Optional[Tuple[str, str]]
-# Load a data file (csv/parquet), infer schema, attach to pipeline.
+# (session_id: str, file_path: str, ext: str, schema_path: Optional[str]) -> Optional[Tuple[str, str]]
+# Load a data file (csv/parquet), optionally apply a pre-built schema, attach to pipeline.
 # Returns (root_vertex_id, file_stem) on success, None on failure or if
 # no implementation is registered.
 attach_data: Callable[
-    [str, str, str], Optional[Tuple[str, str]]
+    [str, str, str, Optional[str]], Optional[Tuple[str, str]]
 ] = lambda *_: None
 
 

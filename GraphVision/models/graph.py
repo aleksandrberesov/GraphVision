@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import reflex as rx
 
@@ -10,12 +10,21 @@ from collections import defaultdict
 untitled_name = "Untitled Graph"
 
 class GraphState(rx.State):
-    selected_edge_id: str =  ""
-    selected_node_id: str =  ""
+    selected_edge_id: str = ""
+    selected_node_id: str = ""
     nodes: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
     title: str = ""
     uploaded_file: str = ""
+    is_busy: bool = False
+    busy_message: str = ""
+    upload_dialog_open: bool = False
+    uploaded_dataset_file: str = ""
+    uploaded_schema_file: str = ""
+    _next_vertex_number: int = 1
+    _dataset_path: str = ""
+    _schema_path: str = ""
+    _dataset_ext: str = ""
 
     def _get_color_by_status(self, status: str) -> str:
         if status == "setted":
@@ -30,11 +39,13 @@ class GraphState(rx.State):
             return "#FFFFFF"
 
     def create_default_node(self) -> Dict[str, Any]:
+        label = f"{self._next_vertex_number}."
+        self._next_vertex_number += 1
         return {
             'id': generate_random_string(16, use_digits=True),
             'type': 'default',
             'data': {
-                'label': '',
+                'label': label,
                 'status': '',
                 'transformation_class': '',
                 'transformation_config': {},
@@ -136,6 +147,14 @@ class GraphState(rx.State):
         self.title = name
 
     @rx.event
+    def set_upload_dialog_open(self, value: bool):
+        self.upload_dialog_open = value
+
+    @rx.event
+    def close_upload_dialog(self):
+        self.upload_dialog_open = False
+
+    @rx.event
     def save_to_file(self):
         return rx.download(
             data=json.dumps({
@@ -161,39 +180,103 @@ class GraphState(rx.State):
         path.unlink(missing_ok=True)
         return self._select_node(graph_data.get("selected_node_id", ""))
 
-    def _attach_data_file(self, path: Path, file_name: str, ext: str):
-        from . import pipeline_hooks
-        result = pipeline_hooks.attach_data(
-            self.router.session.client_token, str(path), ext
-        )
-        if result is None:
-            return
-        root_vertex_id, stem = result
-        # Create or update the root node in the UI
-        existing = next((n for n in self.nodes if n["id"] == root_vertex_id), None)
-        if existing is None:
-            self.nodes = [self._create_root_node(root_vertex_id)]
-            self.edges = []
-        else:
-            existing["data"]["label"] = stem
-        self.title = stem
-        return self.refresh_statuses_from_pipeline()
-
     @rx.event
     async def handle_upload(self, files: list[rx.UploadFile]):
+        self.is_busy = True
+        self.busy_message = "Uploading file..."
+        yield
+        try:
+            for file in files:
+                data = await file.read()
+                if file.name is None:
+                    continue
+                path = rx.get_upload_dir() / file.name
+                with path.open("wb") as f:
+                    f.write(data)
+                self.uploaded_file = str(file.name)
+                ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
+                if ext == "json":
+                    for _e in self._load_json_graph(path, file.name):
+                        yield _e
+                elif ext in ("csv", "parquet"):
+                    self.busy_message = "Processing dataset..."
+                    yield
+                    from . import pipeline_hooks
+                    result = pipeline_hooks.attach_data(
+                        self.router.session.client_token, 
+                        str(path), 
+                        ext,
+                        None
+                    )
+                    if result is not None:
+                        root_vertex_id, stem = result
+                        existing = next((n for n in self.nodes if n["id"] == root_vertex_id), None)
+                        if existing is None:
+                            self.nodes = [self._create_root_node(root_vertex_id)]
+                            self.edges = []
+                        else:
+                            existing["data"]["label"] = stem
+                        self.title = stem
+                        self.nodes = pipeline_hooks.sync_statuses(
+                            self.router.session.client_token, self.nodes
+                        )
+        finally:
+            self.is_busy = False
+            self.busy_message = ""
+
+    @rx.event
+    async def handle_dataset_upload(self, files: list[rx.UploadFile]):
         for file in files:
-            data = await file.read()
             if file.name is None:
                 continue
+            ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
+            if ext not in ("csv", "parquet"):
+                continue
+            data = await file.read()
             path = rx.get_upload_dir() / file.name
             with path.open("wb") as f:
                 f.write(data)
-            self.uploaded_file = str(file.name)
+            self._dataset_path = str(path)
+            self._dataset_ext = ext
+            self.uploaded_dataset_file = file.name
+
+    @rx.event
+    async def handle_schema_upload(self, files: list[rx.UploadFile]):
+        for file in files:
+            if file.name is None:
+                continue
             ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
-            if ext == "json":
-                return self._load_json_graph(path, file.name)
-            if ext in ("csv", "parquet"):
-                return self._attach_data_file(path, file.name, ext)
+            if ext not in ("json", "yaml", "yml"):
+                continue
+            data = await file.read()
+            path = rx.get_upload_dir() / file.name
+            with path.open("wb") as f:
+                f.write(data)
+            self._schema_path = str(path)
+            self.uploaded_schema_file = file.name
+
+    @rx.event
+    async def handle_json_upload(self, files: list[rx.UploadFile]):
+        self.is_busy = True
+        self.busy_message = "Loading graph..."
+        yield
+        try:
+            for file in files:
+                if file.name is None:
+                    continue
+                data = await file.read()
+                path = rx.get_upload_dir() / file.name
+                with path.open("wb") as f:
+                    f.write(data)
+                self.uploaded_file = file.name
+                ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
+                if ext == "json":
+                    self.upload_dialog_open = False
+                    for _e in self._load_json_graph(path, file.name):
+                        yield _e
+        finally:
+            self.is_busy = False
+            self.busy_message = ""
 
     # ------------------------------------------------------------------
     # Node / edge operations
@@ -226,21 +309,74 @@ class GraphState(rx.State):
         self.edges = []
 
     @rx.event
-    def create_new_graph(self):
-        self.nodes = []
-        self.edges = []
-        self.title = ""
-        self.selected_node_id = ""
-        self.selected_edge_id = ""
+    async def create_new_graph(self):
+        self.is_busy = True
+        self.busy_message = "Creating graph..."
+        yield
+        try:
+            self.nodes = []
+            self.edges = []
+            self.title = ""
+            self.selected_node_id = ""
+            self.selected_edge_id = ""
+            self._next_vertex_number = 1
 
-        from . import pipeline_hooks
-        result = pipeline_hooks.new_pipeline(self.router.session.client_token)
-        if result is not None:
-            root_vertex_id, _ = result
-            self.nodes.append(self._create_root_node(root_vertex_id))
-            return self._select_node(root_vertex_id)
-        else:
-            self.add_node()
+            from . import pipeline_hooks
+            result = pipeline_hooks.new_pipeline(self.router.session.client_token)
+            if result is not None:
+                root_vertex_id, _ = result
+                self.nodes.append(self._create_root_node(root_vertex_id))
+                for _e in self._select_node(root_vertex_id):
+                    yield _e
+            else:
+                self.add_node()
+        finally:
+            self.is_busy = False
+            self.busy_message = ""
+
+    @rx.event
+    async def create_graph_with_data(self):
+        if not self._dataset_path:
+            return
+        self.is_busy = True
+        self.busy_message = "Creating graph..."
+        yield
+        try:
+            self.nodes = []
+            self.edges = []
+            self.title = ""
+            self.selected_node_id = ""
+            self.selected_edge_id = ""
+            self._next_vertex_number = 1
+
+            from . import pipeline_hooks
+            schema_path: Optional[str] = self._schema_path if self._schema_path else None
+            result = pipeline_hooks.attach_data(
+                self.router.session.client_token,
+                self._dataset_path,
+                self._dataset_ext,
+                schema_path,
+            )
+            if result is not None:
+                root_vertex_id, stem = result
+                self.nodes = [self._create_root_node(root_vertex_id)]
+                self.edges = []
+                self.title = stem
+                self.nodes = pipeline_hooks.sync_statuses(
+                    self.router.session.client_token, self.nodes
+                )
+                for _e in self._select_node(root_vertex_id):
+                    yield _e
+
+            self._dataset_path = ""
+            self._schema_path = ""
+            self._dataset_ext = ""
+            self.uploaded_dataset_file = ""
+            self.uploaded_schema_file = ""
+            self.upload_dialog_open = False
+        finally:
+            self.is_busy = False
+            self.busy_message = ""
 
     @rx.event
     def on_connect(self, new_edge):
@@ -303,35 +439,52 @@ class GraphState(rx.State):
     # ------------------------------------------------------------------
 
     @rx.event
-    def manifest_node(self, node_id: str):
+    async def manifest_node(self, node_id: str):
         """Fit and apply the transformation at node_id in the pipeline."""
-        from . import pipeline_hooks
-        ok = pipeline_hooks.manifest_vertex(self.router.session.client_token, node_id)
-        if ok:
-            return self.refresh_statuses_from_pipeline()
+        self.is_busy = True
+        self.busy_message = "Applying transformation..."
+        yield
+        try:
+            from . import pipeline_hooks
+            ok = pipeline_hooks.manifest_vertex(self.router.session.client_token, node_id)
+            if ok:
+                self.nodes = pipeline_hooks.sync_statuses(
+                    self.router.session.client_token, self.nodes
+                )
+        finally:
+            self.is_busy = False
+            self.busy_message = ""
 
     @rx.event
-    def add_transformation_node(self, transformation_class: str, config: Dict[str, Any]):
+    async def add_transformation_node(self, transformation_class: str, config: Dict[str, Any]):
         """Add a new node+transformation to both the UI and the pipeline."""
-        parent_id = self.selected_node_id
-        new_node = self.create_default_node()
-        new_node["data"]["transformation_class"] = transformation_class
-        new_node["data"]["transformation_config"] = config
-        self.nodes.append(new_node)
+        self.is_busy = True
+        self.busy_message = "Adding transformation..."
+        yield
+        try:
+            parent_id = self.selected_node_id
+            new_node = self.create_default_node()
+            new_node["data"]["transformation_class"] = transformation_class
+            new_node["data"]["transformation_config"] = config
+            self.nodes.append(new_node)
 
-        if parent_id and next((n for n in self.nodes if n["id"] == parent_id), None):
-            self.add_edge(parent_id, new_node["id"])
-            self.arrange_nodes_in_row(parent_id)
+            if parent_id and next((n for n in self.nodes if n["id"] == parent_id), None):
+                self.add_edge(parent_id, new_node["id"])
+                self.arrange_nodes_in_row(parent_id)
 
-        from . import pipeline_hooks
-        pipeline_hooks.add_transformation(
-            self.router.session.client_token,
-            parent_id,
-            transformation_class,
-            config,
-            new_node["id"],
-        )
-        return self._select_node(new_node["id"])
+            from . import pipeline_hooks
+            pipeline_hooks.add_transformation(
+                self.router.session.client_token,
+                parent_id,
+                transformation_class,
+                config,
+                new_node["id"],
+            )
+            for _e in self._select_node(new_node["id"]):
+                yield _e
+        finally:
+            self.is_busy = False
+            self.busy_message = ""
 
     # ------------------------------------------------------------------
     # Pipeline serialisation
@@ -344,9 +497,16 @@ class GraphState(rx.State):
         pipeline_hooks.save_yaml(self.router.session.client_token, path)
 
     @rx.event
-    def load_pipeline_yaml(self, path: str):
+    async def load_pipeline_yaml(self, path: str):
         """Load a PipelineGraph from YAML and sync the UI."""
-        from . import pipeline_hooks
-        result = pipeline_hooks.load_yaml(self.router.session.client_token, path)
-        if result is not None:
-            self.nodes, self.edges = result
+        self.is_busy = True
+        self.busy_message = "Loading pipeline..."
+        yield
+        try:
+            from . import pipeline_hooks
+            result = pipeline_hooks.load_yaml(self.router.session.client_token, path)
+            if result is not None:
+                self.nodes, self.edges = result
+        finally:
+            self.is_busy = False
+            self.busy_message = ""

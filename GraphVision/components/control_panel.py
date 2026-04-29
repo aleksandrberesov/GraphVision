@@ -14,13 +14,7 @@ def control_panel() -> rx.Component:
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
-            rx.button(
-                "Create new graph",
-                on_click=State.create_new_graph,
-                width="100%",
-            ),
-            
-
+            upload_box(),
             width="100%",
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
@@ -94,13 +88,12 @@ def control_panel() -> rx.Component:
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
-             rx.button(
+            rx.button(
                 "Download file",
                 on_click=State.save_to_file,
                 width="100%",
             ),
-            upload_box(),
-            width="100%",   
+            width="100%",
         ),
         width="100%",
         height="100%",

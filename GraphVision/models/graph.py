@@ -122,12 +122,19 @@ class GraphState(rx.State):
                 self.nodes[child_node_index]["position"]["x"] = start_x + i * spacing
                 self.nodes[child_node_index]["position"]["y"] = parent_node["position"]["y"] + 150
 
-    def _select_node(self, node_id: str):
-        self.selected_node_id = node_id
+    def _select_node(self, node_id: str | None):
+        selected_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
+        if selected_node:
+            selected_node["style"]["background"] = self._get_color_by_status(selected_node["data"].get("status", ""))
+        if node_id is None:
+            self.selected_node_id = ""
+        else:
+            self.selected_node_id = node_id
         selected_node = next((node for node in self.nodes if node["id"] == node_id), None)
+        if selected_node:
+            selected_node["style"]["background"] = "#9CA3AF"
         from .node import NodeState
-        from .plot_state import PlotState
-        return [NodeState.set_node(selected_node), PlotState.load_for_node(node_id)]
+        return NodeState.set_node(selected_node)
 
     @rx.event
     def update_node_label(self, node_id: str | None, new_label: str):
@@ -184,7 +191,6 @@ class GraphState(rx.State):
     async def handle_upload(self, files: list[rx.UploadFile]):
         self.is_busy = True
         self.busy_message = "Uploading file..."
-        yield
         try:
             for file in files:
                 data = await file.read()
@@ -196,8 +202,8 @@ class GraphState(rx.State):
                 self.uploaded_file = str(file.name)
                 ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
                 if ext == "json":
-                    for _e in self._load_json_graph(path, file.name):
-                        yield _e
+                    self._load_json_graph(path, file.name)
+                    
                 elif ext in ("csv", "parquet"):
                     self.busy_message = "Processing dataset..."
                     yield
@@ -272,8 +278,7 @@ class GraphState(rx.State):
                 ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
                 if ext == "json":
                     self.upload_dialog_open = False
-                    for _e in self._load_json_graph(path, file.name):
-                        yield _e
+                    self._load_json_graph(path, file.name)
         finally:
             self.is_busy = False
             self.busy_message = ""
@@ -283,16 +288,10 @@ class GraphState(rx.State):
     # ------------------------------------------------------------------
 
     @rx.event
-    def add_node(self):
+    def create_root(self):
         new_node = self.create_default_node()
         self.nodes.append(new_node)
-        parent_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
-        if parent_node is None:
-            new_node["style"]["background"] = "#9CA3AF"
-            return self._select_node(new_node["id"])
-        else:
-            self.add_edge(parent_node["id"], new_node["id"])
-            self.arrange_nodes_in_row(parent_node["id"])
+        return self._select_node(new_node["id"])
 
     @rx.event
     def delete_node(self, node_id: str):
@@ -310,9 +309,11 @@ class GraphState(rx.State):
 
     @rx.event
     async def create_new_graph(self):
+        root_vertex_id = ""
+
         self.is_busy = True
         self.busy_message = "Creating graph..."
-        yield
+        
         try:
             self.nodes = []
             self.edges = []
@@ -326,16 +327,17 @@ class GraphState(rx.State):
             if result is not None:
                 root_vertex_id, _ = result
                 self.nodes.append(self._create_root_node(root_vertex_id))
-                for _e in self._select_node(root_vertex_id):
-                    yield _e
             else:
-                self.add_node()
+                self.create_root()
         finally:
             self.is_busy = False
             self.busy_message = ""
+            yield self._select_node(root_vertex_id)
 
     @rx.event
     async def create_graph_with_data(self):
+        root_vertex_id = ""
+
         if not self._dataset_path:
             return
         self.is_busy = True
@@ -365,8 +367,7 @@ class GraphState(rx.State):
                 self.nodes = pipeline_hooks.sync_statuses(
                     self.router.session.client_token, self.nodes
                 )
-                for _e in self._select_node(root_vertex_id):
-                    yield _e
+                
 
             self._dataset_path = ""
             self._schema_path = ""
@@ -377,6 +378,7 @@ class GraphState(rx.State):
         finally:
             self.is_busy = False
             self.busy_message = ""
+            yield self._select_node(root_vertex_id)
 
     @rx.event
     def on_connect(self, new_edge):
@@ -392,19 +394,14 @@ class GraphState(rx.State):
         for change in node_changes:
             if change["type"] == "position" and change.get("dragging") == True:
                 map_id_to_new_position[change["id"]] = change["position"]
+                for i, node in enumerate(self.nodes):
+                    if node["id"] in map_id_to_new_position:
+                        new_position = map_id_to_new_position[node["id"]]
+                        self.nodes[i]["position"] = new_position
             if change["type"] == "select":
                 node = next((node for node in self.nodes if node["id"] == change["id"]), None)
-                selected_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
-                if selected_node:
-                    selected_node["style"]["background"] = self._get_color_by_status(selected_node["data"].get("status", ""))
                 if node:
-                    node["style"]["background"] = "#9CA3AF"
-                    return self._select_node(node["id"])
-
-        for i, node in enumerate(self.nodes):
-            if node["id"] in map_id_to_new_position:
-                new_position = map_id_to_new_position[node["id"]]
-                self.nodes[i]["position"] = new_position
+                    return self._select_node(node["id"])                 
 
     @rx.event
     def on_edges_change(self, edge_changes: List[Dict[str, Any]]):
@@ -460,10 +457,10 @@ class GraphState(rx.State):
         """Add a new node+transformation to both the UI and the pipeline."""
         self.is_busy = True
         self.busy_message = "Adding transformation..."
-        yield
+        new_node = self.create_default_node()
+        ##yield
         try:
             parent_id = self.selected_node_id
-            new_node = self.create_default_node()
             new_node["data"]["transformation_class"] = transformation_class
             new_node["data"]["transformation_config"] = config
             self.nodes.append(new_node)
@@ -480,11 +477,11 @@ class GraphState(rx.State):
                 config,
                 new_node["id"],
             )
-            for _e in self._select_node(new_node["id"]):
-                yield _e
+
         finally:
             self.is_busy = False
             self.busy_message = ""
+            yield self._select_node(new_node["id"])
 
     # ------------------------------------------------------------------
     # Pipeline serialisation

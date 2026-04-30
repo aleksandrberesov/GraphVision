@@ -17,14 +17,18 @@ def control_panel() -> rx.Component:
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
             rx.hstack(
-                rx.text(f"Title : ", font_size="md", font_weight="bold", color="black"),
+                rx.text("Title:", font_size="md", font_weight="bold", color="black", white_space="nowrap"),
                 rx.input(
                     value=Node.label,
                     on_change=Node.update_label,
                     placeholder="no title",
                     color="black",
-                    background_color="garis.100",  
+                    background_color="garis.100",
+                    flex="1",
                 ),
+                align="center",
+                width="100%",
+                spacing="2",
             ),
             rx.cond(
                 (Node.id == "None") | (Node.id == None),

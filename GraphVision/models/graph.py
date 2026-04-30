@@ -18,6 +18,8 @@ class GraphState(rx.State):
     uploaded_file: str = ""
     create_dialog_open: bool = False
     load_dialog_open: bool = False
+    save_dialog_open: bool = False
+    save_filename: str = ""
     uploaded_dataset_file: str = ""
     uploaded_schema_file: str = ""
     _next_vertex_number: int = 1
@@ -164,7 +166,19 @@ class GraphState(rx.State):
         self.load_dialog_open = value
 
     @rx.event
+    def set_save_dialog_open(self, value: bool):
+        self.save_dialog_open = value
+        if value:
+            self.save_filename = self.title.strip() or untitled_name
+
+    @rx.event
+    def set_save_filename(self, name: str):
+        self.save_filename = name
+
+    @rx.event
     def save_to_file(self):
+        self.save_dialog_open = False
+        name = self.save_filename.strip() or untitled_name
         return rx.download(
             data=json.dumps({
                 "nodes": self.nodes,
@@ -172,7 +186,7 @@ class GraphState(rx.State):
                 "selected_node_id": self.selected_node_id,
                 "selected_edge_id": self.selected_edge_id,
             }),
-            filename=f"{self.title if self.title.strip() else untitled_name}.json"
+            filename=f"{name}.json"
         )
 
     # ------------------------------------------------------------------

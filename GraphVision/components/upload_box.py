@@ -17,8 +17,8 @@ def upload_box():
                 variant="outline",
             ),
             rx.button(
-                "Download file",
-                on_click=State.save_to_file,
+                "Download graph",
+                on_click=State.set_save_dialog_open(True),
                 width="100%",
                 variant="outline",
             ),
@@ -107,6 +107,47 @@ def upload_box():
             ),
             open=State.create_dialog_open,
             on_open_change=State.set_create_dialog_open,
+        ),
+        rx.dialog.root(
+            rx.dialog.content(
+                rx.dialog.title("Save graph"),
+                rx.vstack(
+                    rx.text("File name", font_weight="bold", color="black"),
+                    rx.hstack(
+                        rx.input(
+                            value=State.save_filename,
+                            on_change=State.set_save_filename,
+                            placeholder="filename",
+                            flex="1",
+                        ),
+                        rx.text(".json", color="gray", white_space="nowrap"),
+                        align="center",
+                        width="100%",
+                    ),
+                    rx.hstack(
+                        rx.dialog.close(
+                            rx.button(
+                                "Cancel",
+                                variant="outline",
+                                color_scheme="gray",
+                            ),
+                        ),
+                        rx.button(
+                            "Download",
+                            on_click=State.save_to_file,
+                            disabled=State.save_filename.strip() == "",
+                        ),
+                        spacing="3",
+                        justify="end",
+                        width="100%",
+                    ),
+                    spacing="3",
+                    width="100%",
+                ),
+                max_width="360px",
+            ),
+            open=State.save_dialog_open,
+            on_open_change=State.set_save_dialog_open,
         ),
         rx.dialog.root(
             rx.dialog.content(

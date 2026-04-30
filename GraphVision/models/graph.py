@@ -43,7 +43,7 @@ class GraphState(rx.State):
         self._next_vertex_number += 1
         return {
             'id': generate_random_string(16, use_digits=True),
-            'type': 'default',
+            'type': 'vertex',
             'data': {
                 'label': label,
                 'status': '',
@@ -56,21 +56,15 @@ class GraphState(rx.State):
             },
             'draggable': True,
             'style': {
-                'background': '#FFFFFF',
-                'color': '#000000',
-                'border': '1px solid #000000',
                 'width': '150px',
                 'height': '50px',
-                'display': 'flex',
-                'alignItems': 'center',
-                'justifyContent': 'center',
             },
         }
 
     def _create_root_node(self, vertex_id: str) -> Dict[str, Any]:
         return {
             "id": vertex_id,
-            "type": "default",
+            "type": "vertex",
             "data": {
                 "label": "Root",
                 "status": "setted",
@@ -80,14 +74,8 @@ class GraphState(rx.State):
             "position": {"x": 0, "y": 0},
             "draggable": True,
             "style": {
-                "background": "#34D399",
-                "color": "#000000",
-                "border": "2px solid #059669",
                 "width": "150px",
                 "height": "50px",
-                "display": "flex",
-                "alignItems": "center",
-                "justifyContent": "center",
             },
         }
 
@@ -123,16 +111,16 @@ class GraphState(rx.State):
                 self.nodes[child_node_index]["position"]["y"] = parent_node["position"]["y"] + 150
 
     def _select_node(self, node_id: str | None):
-        selected_node = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
-        if selected_node:
-            selected_node["style"]["background"] = self._get_color_by_status(selected_node["data"].get("status", ""))
+        prev = next((node for node in self.nodes if node["id"] == self.selected_node_id), None)
+        if prev:
+            prev["data"]["selected"] = False
         if node_id is None:
             self.selected_node_id = ""
         else:
             self.selected_node_id = node_id
         selected_node = next((node for node in self.nodes if node["id"] == node_id), None)
         if selected_node:
-            selected_node["style"]["background"] = "#9CA3AF"
+            selected_node["data"]["selected"] = True
         from .node import NodeState
         return NodeState.set_node(selected_node)
 
@@ -147,7 +135,6 @@ class GraphState(rx.State):
         selected_node = next((node for node in self.nodes if node["id"] == node_id), None)
         if selected_node:
             selected_node["data"]["status"] = new_status
-            selected_node["style"]["background"] = self._get_color_by_status(new_status)
 
     @rx.event
     def set_name(self, name: str):

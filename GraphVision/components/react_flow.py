@@ -35,16 +35,17 @@ import {{ Handle, Position }} from "reactflow";
 
 let __rxAddEvents = null;
 
-const _getStatusColor = (status) => {{
-  if (status === "setted")    return "#34D399";
-  if (status === "fitted")    return "#3B82F6";
+const _getStatusColor = (status, selected) => {{
+  if (selected)                return "#BFDBFE";
+  if (status === "setted")     return "#34D399";
+  if (status === "fitted")     return "#3B82F6";
   if (status === "trasformed") return "#F87171";
-  if (status === "complited") return "#9CA3AF";
+  if (status === "complited")  return "#9CA3AF";
   return "#FFFFFF";
 }};
 
-const VertexNode = ({{ data, selected }}) => {{
-  const bg = selected ? "#9CA3AF" : _getStatusColor(data?.status ?? "");
+const VertexNode = ({{ data }}) => {{
+  const bg = _getStatusColor(data?.status ?? "", data?.selected ?? false);
 
   const handlePlus = (e) => {{
     e.stopPropagation();
@@ -57,7 +58,7 @@ const VertexNode = ({{ data, selected }}) => {{
   return (
     <div style={{{{
       background: bg,
-      border: selected ? "2px solid #2563EB" : "1px solid #000000",
+      border: (data?.selected ?? false) ? "2px solid #2563EB" : "1px solid #000000",
       borderRadius: "4px",
       width: "100%",
       height: "100%",
@@ -86,19 +87,22 @@ const VertexNode = ({{ data, selected }}) => {{
           borderRadius: "50%",
           border: "1px solid #666",
           background: "white",
-          fontSize: "13px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 10,
-          lineHeight: "1",
-        }}}}>+</button>
+        }}}}>
+        <svg width="10" height="10" viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+          <line x1="5" y1="1" x2="5" y2="9" stroke="#555" strokeWidth="1.8" strokeLinecap="round"/>
+          <line x1="1" y1="5" x2="9" y2="5" stroke="#555" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      </button>
       <Handle type="source" position={{Position.Bottom}} />
     </div>
   );
 }};
 
-const nodeTypes = {{ default: VertexNode }};
+const nodeTypes = {{ vertex: VertexNode }};
 
 const ReactFlowEventBridge = () => {{
   const [addEvents] = useContext(EventLoopContext);

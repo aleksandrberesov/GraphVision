@@ -84,6 +84,14 @@ load_yaml: Callable[
     [str, str], Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]
 ] = lambda *_: None
 
+# () -> List[str]
+# Return sorted list of registered transformer class names.
+available_transformers: Callable[[], List[str]] = lambda: []
+
+# () -> bool
+# Return True if the transformer registry is already built (no I/O needed).
+is_transformers_cached: Callable[[], bool] = lambda: False
+
 # (class_name: str) -> Optional[Dict[str, Any]]
 # Return the param schema for a transformer's __init__.  Shape:
 #   {"class_name": str, "params": [{"name", "annotation", "required", "default", "is_list", "is_bool"}, …]}

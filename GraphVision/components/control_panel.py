@@ -13,13 +13,9 @@ def control_panel() -> rx.Component:
             on_change=State.set_name,   
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
-        rx.vstack(
-            upload_box(),
-            width="100%",
-        ),
+        upload_box(),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         rx.vstack(
-            rx.text(f"Selected Node: {Node.id}", font_size="md", font_weight="bold", color="black"),
             rx.hstack(
                 rx.text(f"Title : ", font_size="md", font_weight="bold", color="black"),
                 rx.input(
@@ -78,15 +74,6 @@ def control_panel() -> rx.Component:
                 ),
             ),
             height="40%",
-            width="100%",
-        ),
-        rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
-        rx.vstack(
-            rx.button(
-                "Download file",
-                on_click=State.save_to_file,
-                width="100%",
-            ),
             width="100%",
         ),
         width="100%",

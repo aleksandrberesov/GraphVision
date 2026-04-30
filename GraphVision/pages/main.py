@@ -5,16 +5,17 @@ from ..components import (
     control_panel,
 )
 from ..models import GraphState as State
+from ..models.busy_state import BusyState
 
 
 def main_page() -> rx.Component:
     return rx.flex(
         rx.cond(
-            State.is_busy,
+            BusyState.is_busy,
             rx.box(
                 rx.vstack(
                     rx.spinner(size="3"),
-                    rx.text(State.busy_message, color="white"),
+                    rx.text(BusyState.message, color="white"),
                     align="center",
                     spacing="2",
                 ),

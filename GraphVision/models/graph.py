@@ -16,15 +16,17 @@ class GraphState(rx.State):
     edges: List[Dict[str, Any]] = []
     title: str = ""
     uploaded_file: str = ""
-    is_busy: bool = False
-    busy_message: str = ""
-    upload_dialog_open: bool = False
+    create_dialog_open: bool = False
+    load_dialog_open: bool = False
     uploaded_dataset_file: str = ""
     uploaded_schema_file: str = ""
     _next_vertex_number: int = 1
     _dataset_path: str = ""
     _schema_path: str = ""
     _dataset_ext: str = ""
+    _json_path: str = ""
+
+    json_upload: list[rx.UploadFile] = []
 
     def _get_color_by_status(self, status: str) -> str:
         if status == "setted":
@@ -154,12 +156,12 @@ class GraphState(rx.State):
         self.title = name
 
     @rx.event
-    def set_upload_dialog_open(self, value: bool):
-        self.upload_dialog_open = value
+    def set_create_dialog_open(self, value: bool):
+        self.create_dialog_open = value
 
     @rx.event
-    def close_upload_dialog(self):
-        self.upload_dialog_open = False
+    def set_load_dialog_open(self, value: bool):
+        self.load_dialog_open = value
 
     @rx.event
     def save_to_file(self):
@@ -189,8 +191,8 @@ class GraphState(rx.State):
 
     @rx.event
     async def handle_upload(self, files: list[rx.UploadFile]):
-        self.is_busy = True
-        self.busy_message = "Uploading file..."
+        from .busy_state import BusyState
+        yield BusyState.show("Uploading file...")
         try:
             for file in files:
                 data = await file.read()
@@ -203,14 +205,13 @@ class GraphState(rx.State):
                 ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
                 if ext == "json":
                     self._load_json_graph(path, file.name)
-                    
+
                 elif ext in ("csv", "parquet"):
-                    self.busy_message = "Processing dataset..."
-                    yield
+                    yield BusyState.show("Processing dataset...")
                     from . import pipeline_hooks
                     result = pipeline_hooks.attach_data(
-                        self.router.session.client_token, 
-                        str(path), 
+                        self.router.session.client_token,
+                        str(path),
                         ext,
                         None
                     )
@@ -227,8 +228,7 @@ class GraphState(rx.State):
                             self.router.session.client_token, self.nodes
                         )
         finally:
-            self.is_busy = False
-            self.busy_message = ""
+            yield BusyState.hide()
 
     @rx.event
     async def handle_dataset_upload(self, files: list[rx.UploadFile]):
@@ -262,26 +262,23 @@ class GraphState(rx.State):
             self.uploaded_schema_file = file.name
 
     @rx.event
-    async def handle_json_upload(self, files: list[rx.UploadFile]):
-        self.is_busy = True
-        self.busy_message = "Loading graph..."
-        yield
-        try:
-            for file in files:
-                if file.name is None:
-                    continue
-                data = await file.read()
-                path = rx.get_upload_dir() / file.name
-                with path.open("wb") as f:
-                    f.write(data)
-                self.uploaded_file = file.name
-                ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
-                if ext == "json":
-                    self.upload_dialog_open = False
-                    self._load_json_graph(path, file.name)
-        finally:
-            self.is_busy = False
-            self.busy_message = ""
+    async def handle_json_stage(self, files: list[rx.UploadFile]):
+        for file in files:
+            if file.name is None:
+                continue
+            ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
+            if ext != "json":
+                continue
+            data = await file.read()
+            path = rx.get_upload_dir() / file.name
+            with path.open("wb") as f:
+                f.write(data)
+            self._json_path = str(path)
+            self.uploaded_file = file.name
+
+    @rx.event
+    async def handle_json_upload(self):
+        self.load_dialog_open = False
 
     # ------------------------------------------------------------------
     # Node / edge operations
@@ -309,11 +306,9 @@ class GraphState(rx.State):
 
     @rx.event
     async def create_new_graph(self):
+        from .busy_state import BusyState
         root_vertex_id = ""
-
-        self.is_busy = True
-        self.busy_message = "Creating graph..."
-        
+        yield BusyState.show("Creating graph...")
         try:
             self.nodes = []
             self.edges = []
@@ -330,19 +325,17 @@ class GraphState(rx.State):
             else:
                 self.create_root()
         finally:
-            self.is_busy = False
-            self.busy_message = ""
+            yield BusyState.hide()
             yield self._select_node(root_vertex_id)
 
     @rx.event
     async def create_graph_with_data(self):
         root_vertex_id = ""
 
+        from .busy_state import BusyState
         if not self._dataset_path:
             return
-        self.is_busy = True
-        self.busy_message = "Creating graph..."
-        yield
+        yield BusyState.show("Creating graph...")
         try:
             self.nodes = []
             self.edges = []
@@ -374,10 +367,9 @@ class GraphState(rx.State):
             self._dataset_ext = ""
             self.uploaded_dataset_file = ""
             self.uploaded_schema_file = ""
-            self.upload_dialog_open = False
+            self.create_dialog_open = False
         finally:
-            self.is_busy = False
-            self.busy_message = ""
+            yield BusyState.hide()
             yield self._select_node(root_vertex_id)
 
     @rx.event
@@ -438,9 +430,8 @@ class GraphState(rx.State):
     @rx.event
     async def manifest_node(self, node_id: str):
         """Fit and apply the transformation at node_id in the pipeline."""
-        self.is_busy = True
-        self.busy_message = "Applying transformation..."
-        yield
+        from .busy_state import BusyState
+        yield BusyState.show("Applying transformation...")
         try:
             from . import pipeline_hooks
             ok = pipeline_hooks.manifest_vertex(self.router.session.client_token, node_id)
@@ -449,16 +440,16 @@ class GraphState(rx.State):
                     self.router.session.client_token, self.nodes
                 )
         finally:
-            self.is_busy = False
-            self.busy_message = ""
+            yield BusyState.hide()
 
     @rx.event
     async def add_transformation_node(self, transformation_class: str, config: Dict[str, Any]):
         """Add a new node+transformation to both the UI and the pipeline."""
-        self.is_busy = True
-        self.busy_message = "Adding transformation..."
+        import asyncio
+        from .busy_state import BusyState
         new_node = self.create_default_node()
-        ##yield
+        yield BusyState.show("Adding transformation...")
+        await asyncio.sleep(0.05)
         try:
             parent_id = self.selected_node_id
             new_node["data"]["transformation_class"] = transformation_class
@@ -479,8 +470,7 @@ class GraphState(rx.State):
             )
 
         finally:
-            self.is_busy = False
-            self.busy_message = ""
+            yield BusyState.hide()
             yield self._select_node(new_node["id"])
 
     # ------------------------------------------------------------------
@@ -496,14 +486,12 @@ class GraphState(rx.State):
     @rx.event
     async def load_pipeline_yaml(self, path: str):
         """Load a PipelineGraph from YAML and sync the UI."""
-        self.is_busy = True
-        self.busy_message = "Loading pipeline..."
-        yield
+        from .busy_state import BusyState
+        yield BusyState.show("Loading pipeline...")
         try:
             from . import pipeline_hooks
             result = pipeline_hooks.load_yaml(self.router.session.client_token, path)
             if result is not None:
                 self.nodes, self.edges = result
         finally:
-            self.is_busy = False
-            self.busy_message = ""
+            yield BusyState.hide()

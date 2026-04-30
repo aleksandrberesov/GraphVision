@@ -20,18 +20,21 @@ class ConfigState(rx.State):
 
     @rx.event
     async def open_dialog(self):
-        from bridge_layer.bridge import available_transformers
+        from . import pipeline_hooks
+        from .busy_state import BusyState
         from .graph import GraphState
+
+        if not self.transformer_names and not pipeline_hooks.is_transformers_cached():
+            yield BusyState.show("Loading transformers...")
 
         graph_state = await self.get_state(GraphState)
         parent_id = graph_state.selected_node_id
 
-        self.transformer_names = available_transformers()
+        self.transformer_names = pipeline_hooks.available_transformers()
         self.selected_class = ""
         self.param_schema = []
-        self.is_open = True
+        self.available_columns = []
 
-        from . import pipeline_hooks
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
             self.router.session.client_token, parent_id
         )
@@ -40,8 +43,9 @@ class ConfigState(rx.State):
             for col_list in cols_by_type.values():
                 cols.extend(col_list)
             self.available_columns = cols
-        else:
-            self.available_columns = []
+
+        yield BusyState.hide()
+        self.is_open = True
 
     @rx.event
     def set_is_open(self, value: bool):

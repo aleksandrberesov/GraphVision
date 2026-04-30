@@ -10,7 +10,7 @@ def control_panel() -> rx.Component:
         rx.input(
             value=State.title,
             placeholder="enter name",
-            on_change=State.set_name,   
+            on_change=State.set_name,
         ),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         upload_box(),
@@ -43,13 +43,13 @@ def control_panel() -> rx.Component:
                     rx.button(
                         "Fit",
                         on_click=Node.update_status("fitted"),
-                        disabled=Node.is_fitted, 
+                        disabled=Node.is_fitted,
                         width="100%",
                     ),
                     rx.button(
                         "Transform",
                         on_click=Node.update_status("trasformed"),
-                        disabled=Node.is_trasformed, 
+                        disabled=Node.is_trasformed,
                         width="100%",
                     ),
                     config_panel(),

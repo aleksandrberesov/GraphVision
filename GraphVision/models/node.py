@@ -6,7 +6,12 @@ class NodeState(rx.State):
     id: str | None = ""
     label: str = ""
     status: str = ""
+    transformation_class: str = ""
     errors: List[str] = []
+
+    @rx.var
+    def is_root(self) -> bool:
+        return self.transformation_class == ""
 
     @rx.var
     def is_setted(self) -> bool:
@@ -32,10 +37,12 @@ class NodeState(rx.State):
             self.id = "None"
             self.label = "Unkhown"
             self.status = ""
+            self.transformation_class = ""
         else:
             self.id = node.get("id", "")
             self.label = node.get("data", {}).get("label", "")
             self.status = node.get("data", {}).get("status", "")
+            self.transformation_class = node.get("data", {}).get("transformation_class", "")
             self.errors = node.get("data", {}).get("errors", [])
 
     @rx.event

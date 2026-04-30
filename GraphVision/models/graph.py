@@ -16,10 +16,6 @@ class GraphState(rx.State):
     edges: List[Dict[str, Any]] = []
     title: str = ""
     uploaded_file: str = ""
-    create_dialog_open: bool = False
-    load_dialog_open: bool = False
-    save_dialog_open: bool = False
-    save_filename: str = ""
     uploaded_dataset_file: str = ""
     uploaded_schema_file: str = ""
     _next_vertex_number: int = 1
@@ -158,28 +154,12 @@ class GraphState(rx.State):
         self.title = name
 
     @rx.event
-    def set_create_dialog_open(self, value: bool):
-        self.create_dialog_open = value
-
-    @rx.event
-    def set_load_dialog_open(self, value: bool):
-        self.load_dialog_open = value
-
-    @rx.event
-    def set_save_dialog_open(self, value: bool):
-        self.save_dialog_open = value
-        if value:
-            self.save_filename = self.title.strip() or untitled_name
-
-    @rx.event
-    def set_save_filename(self, name: str):
-        self.save_filename = name
-
-    @rx.event
-    def save_to_file(self):
-        self.save_dialog_open = False
-        name = self.save_filename.strip() or untitled_name
-        return rx.download(
+    async def save_to_file(self):
+        from .dialog_state import DialogState
+        dialog_state = await self.get_state(DialogState)
+        name = dialog_state.save_filename.strip() or untitled_name
+        yield DialogState.hide()
+        yield rx.download(
             data=json.dumps({
                 "nodes": self.nodes,
                 "edges": self.edges,
@@ -292,7 +272,8 @@ class GraphState(rx.State):
 
     @rx.event
     async def handle_json_upload(self):
-        self.load_dialog_open = False
+        from .dialog_state import DialogState
+        yield DialogState.hide()
 
     # ------------------------------------------------------------------
     # Node / edge operations
@@ -381,8 +362,9 @@ class GraphState(rx.State):
             self._dataset_ext = ""
             self.uploaded_dataset_file = ""
             self.uploaded_schema_file = ""
-            self.create_dialog_open = False
         finally:
+            from .dialog_state import DialogState
+            yield DialogState.hide()
             yield BusyState.hide()
             yield self._select_node(root_vertex_id)
 

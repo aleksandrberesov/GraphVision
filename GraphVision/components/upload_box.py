@@ -1,5 +1,5 @@
 import reflex as rx
-from ..models import GraphState as State
+from ..models import GraphState as State, DialogState
 
 
 def upload_box():
@@ -7,18 +7,18 @@ def upload_box():
         rx.vstack(
             rx.button(
                 "Create graph",
-                on_click=State.set_create_dialog_open(True),
+                on_click=DialogState.open_create,
                 width="100%",
             ),
             rx.button(
                 "Upload graph",
-                on_click=State.set_load_dialog_open(True),
+                on_click=DialogState.open_load,
                 width="100%",
                 variant="outline",
             ),
             rx.button(
                 "Download graph",
-                on_click=State.set_save_dialog_open(True),
+                on_click=DialogState.open_save,
                 width="100%",
                 variant="outline",
             ),
@@ -105,8 +105,8 @@ def upload_box():
                 ),
                 max_width="480px",
             ),
-            open=State.create_dialog_open,
-            on_open_change=State.set_create_dialog_open,
+            open=DialogState.create_open,
+            on_open_change=DialogState.set_create_open,
         ),
         rx.dialog.root(
             rx.dialog.content(
@@ -115,8 +115,8 @@ def upload_box():
                     rx.text("File name", font_weight="bold", color="black"),
                     rx.hstack(
                         rx.input(
-                            value=State.save_filename,
-                            on_change=State.set_save_filename,
+                            value=DialogState.save_filename,
+                            on_change=DialogState.set_save_filename,
                             placeholder="filename",
                             flex="1",
                         ),
@@ -135,7 +135,7 @@ def upload_box():
                         rx.button(
                             "Download",
                             on_click=State.save_to_file,
-                            disabled=State.save_filename.strip() == "",
+                            disabled=DialogState.save_filename.strip() == "",
                         ),
                         spacing="3",
                         justify="end",
@@ -146,8 +146,8 @@ def upload_box():
                 ),
                 max_width="360px",
             ),
-            open=State.save_dialog_open,
-            on_open_change=State.set_save_dialog_open,
+            open=DialogState.save_open,
+            on_open_change=DialogState.set_save_open,
         ),
         rx.dialog.root(
             rx.dialog.content(
@@ -202,7 +202,7 @@ def upload_box():
                 ),
                 max_width="480px",
             ),
-            open=State.load_dialog_open,
-            on_open_change=State.set_load_dialog_open,
+            open=DialogState.load_open,
+            on_open_change=DialogState.set_load_open,
         ),
     )

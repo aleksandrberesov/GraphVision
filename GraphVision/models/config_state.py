@@ -19,6 +19,63 @@ class ConfigState(rx.State):
         return ", ".join(self.available_columns)
 
     @rx.event
+    async def load_transformers(self):
+        """Eagerly populate transformer_names without opening the dialog."""
+        from . import pipeline_hooks
+        from .busy_state import BusyState
+        if self.transformer_names:
+            return
+        if not pipeline_hooks.is_transformers_cached():
+            yield BusyState.show("Loading transformers...")
+        self.transformer_names = pipeline_hooks.available_transformers()
+        yield BusyState.hide()
+
+    @rx.event
+    async def open_dialog_with_class(self, class_name: str):
+        """Open the config dialog with class_name pre-selected."""
+        from . import pipeline_hooks
+        from .busy_state import BusyState
+        from .graph import GraphState
+
+        if not self.transformer_names and not pipeline_hooks.is_transformers_cached():
+            yield BusyState.show("Loading transformers...")
+
+        graph_state = await self.get_state(GraphState)
+        parent_id = graph_state.selected_node_id
+
+        self.transformer_names = pipeline_hooks.available_transformers()
+        self.selected_class = class_name
+        self.available_columns = []
+
+        schema = pipeline_hooks.describe_transformer(class_name)
+        if schema is not None:
+            params = []
+            for p in schema["params"]:
+                default = p["default"]
+                if p["is_list"]:
+                    initial = ", ".join(default) if isinstance(default, list) else ""
+                elif p["is_bool"]:
+                    initial = "" if p["required"] else str(default).lower()
+                else:
+                    initial = "" if p["required"] else ("" if default is None else str(default))
+                params.append({**p, "value": initial})
+            self.param_schema = params
+        else:
+            self.param_schema = []
+
+        cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
+            self.router.session.client_token, parent_id
+        )
+        if cols_by_type:
+            cols: List[str] = []
+            for col_list in cols_by_type.values():
+                cols.extend(col_list)
+            self.available_columns = cols
+
+        yield BusyState.hide()
+        self.is_open = True
+
+    @rx.event
     async def open_dialog(self):
         from . import pipeline_hooks
         from .busy_state import BusyState

@@ -3,13 +3,30 @@ import reflex as rx
 from ..components import (
     plot_layout,
     control_panel,
+    top_menu,
 )
 from ..models import GraphState as State
 from ..models.busy_state import BusyState
 
 
 def main_page() -> rx.Component:
-    return rx.flex(
+    return rx.vstack(
+        top_menu(),
+        rx.flex(
+            rx.box(
+                control_panel(),
+                width="30%",
+            ),
+            rx.spacer(),
+            rx.box(
+                plot_layout(),
+                width="70%",
+            ),
+            width="100%",
+            flex="1",
+            spacing="1",
+            bg="white",
+        ),
         rx.cond(
             BusyState.is_busy,
             rx.box(
@@ -32,17 +49,8 @@ def main_page() -> rx.Component:
             ),
             rx.fragment(),
         ),
-        rx.box(
-            control_panel(),
-            width="30%",
-        ),
-        rx.spacer(),
-        rx.box(
-            plot_layout(),
-            width="70%",
-        ),
         width="100vw",
         height="100vh",
-        spacing="1",
+        spacing="0",
         bg="white",
     )

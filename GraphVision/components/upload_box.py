@@ -4,27 +4,6 @@ from ..models import GraphState as State, DialogState
 
 def upload_box():
     return rx.fragment(
-        rx.vstack(
-            rx.button(
-                "Create graph",
-                on_click=DialogState.open_create,
-                width="100%",
-            ),
-            rx.button(
-                "Upload graph",
-                on_click=DialogState.open_load,
-                width="100%",
-                variant="outline",
-            ),
-            rx.button(
-                "Download graph",
-                on_click=DialogState.open_save,
-                width="100%",
-                variant="outline",
-            ),
-            width="100%",
-            spacing="2",
-        ),
         rx.dialog.root(
             rx.dialog.content(
                 rx.dialog.title("Create graph"),

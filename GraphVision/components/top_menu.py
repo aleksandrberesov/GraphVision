@@ -1,6 +1,7 @@
 import reflex as rx
 
 from ..models import DialogState
+from ..models.auth_state import AuthState
 from ..models.config_state import ConfigState
 from ..models.schema_state import SchemaState
 
@@ -19,6 +20,8 @@ def top_menu() -> rx.Component:
                 rx.menu.item("Save graph", on_click=DialogState.open_save),
                 rx.menu.separator(),
                 rx.menu.item("Edit schema", on_click=SchemaState.open_schema),
+                rx.menu.separator(),
+                rx.menu.item("Log out", on_click=AuthState.do_logout),
             ),
         ),
         rx.menu.root(

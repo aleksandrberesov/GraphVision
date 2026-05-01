@@ -1,3 +1,4 @@
+from .auth_state import AuthState
 from .busy_state import BusyState
 from .dialog_state import DialogState
 from .graph import GraphState
@@ -7,6 +8,7 @@ from .plot_state import PlotState
 from .schema_state import SchemaState
 
 __all__ = [
+    "AuthState",
     "BusyState",
     "DialogState",
     "GraphState",

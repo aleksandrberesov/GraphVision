@@ -2,11 +2,14 @@ import importlib
 import os
 
 import reflex as rx
+from reflex_local_auth import require_login
 
 from rxconfig import config
 
 from .pages import (
+    login_page,
     main_page,
+    register_page,
 )
 
 _hooks_module = os.environ.get("GRAPHVISION_PIPELINE_HOOKS")
@@ -18,4 +21,6 @@ _title = os.environ.get("GRAPHVISION_TITLE", "GraphVision")
 
 app = rx.App(theme=rx.theme(accent_color=_accent_color))  # type: ignore[arg-type]
 
-app.add_page(main_page, route="/", title=_title)
+app.add_page(require_login(main_page), route="/", title=_title)
+app.add_page(login_page, route="/login", title="Login")
+app.add_page(register_page, route="/register", title="Register")

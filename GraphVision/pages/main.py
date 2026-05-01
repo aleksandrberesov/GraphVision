@@ -12,6 +12,7 @@ from ..models.busy_state import BusyState
 
 def main_page() -> rx.Component:
     return rx.vstack(
+        rx.toast.provider(),
         top_menu(),
         rx.flex(
             rx.box(

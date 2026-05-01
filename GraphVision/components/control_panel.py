@@ -59,12 +59,20 @@ def _vertex_properties() -> rx.Component:
                 config_panel(),
                 results_panel(),
                 rx.button(
-                    "Fit",
+                    "Apply",
                     on_click=State.manifest_node(Node.id),
-                    disabled=Node.is_fitted,
+                    disabled=Node.status == "",
+                    width="100%",
+                    color_scheme="blue",
+                ),
+                rx.button(
+                    "Fit only",
+                    on_click=State.manifest_node(Node.id),
+                    disabled=Node.status != "setted",
                     width="100%",
                     variant="soft",
-                    color_scheme="blue",
+                    size="1",
+                    color_scheme="gray",
                 ),
                 rx.button(
                     "Delete node",

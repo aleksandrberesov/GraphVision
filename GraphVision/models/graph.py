@@ -422,6 +422,7 @@ class GraphState(rx.State):
                 self.nodes = pipeline_hooks.sync_statuses(
                     self.router.session.client_token, self.nodes
                 )
+                yield rx.toast.success("Applied!")
         finally:
             yield BusyState.hide()
 

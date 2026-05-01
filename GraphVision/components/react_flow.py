@@ -35,17 +35,17 @@ import {{ Handle, Position }} from "reactflow";
 
 let __rxAddEvents = null;
 
-const _getStatusColor = (status, selected) => {{
-  if (selected)                return "#BFDBFE";
+const _getStatusColor = (status) => {{
   if (status === "setted")     return "#34D399";
   if (status === "fitted")     return "#3B82F6";
   if (status === "trasformed") return "#F87171";
-  if (status === "complited")  return "#9CA3AF";
-  return "#FFFFFF";
+  if (status === "complited")  return "#10B981";
+  return "#9CA3AF";
 }};
 
 const VertexNode = ({{ data }}) => {{
-  const bg = _getStatusColor(data?.status ?? "", data?.selected ?? false);
+  const bg = _getStatusColor(data?.status ?? "");
+  const selected = data?.selected ?? false;
 
   const handlePlus = (e) => {{
     e.stopPropagation();
@@ -58,11 +58,12 @@ const VertexNode = ({{ data }}) => {{
   return (
     <div style={{{{
       background: bg,
-      border: (data?.selected ?? false) ? "2px solid #2563EB" : "1px solid #000000",
+      border: selected ? "3px solid #2563EB" : "1px solid #000000",
       borderRadius: "4px",
       width: "100%",
       height: "100%",
       display: "flex",
+      flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
       position: "relative",
@@ -71,7 +72,10 @@ const VertexNode = ({{ data }}) => {{
       boxSizing: "border-box",
     }}}}>
       <Handle type="target" position={{Position.Top}} />
-      <span style={{{{ userSelect: "none" }}}}>{"{data?.label}"}</span>
+      <span style={{{{ userSelect: "none", fontWeight: 500 }}}}>{"{data?.label}"}</span>
+      {"{data?.status && data.status !== '' && ("}
+        <span style={{{{ fontSize: "9px", opacity: 0.7, marginTop: "2px", userSelect: "none" }}}}>{"{data.status}"}</span>
+      {")"  + "}"}
       <button
         onMouseDown={{(e) => e.stopPropagation()}}
         onClick={{handlePlus}}

@@ -34,9 +34,9 @@ class GraphState(rx.State):
         elif status == "trasformed":
             return "#F87171"
         elif status == "complited":
-            return "#9CA3AF"
+            return "#10B981"
         else:
-            return "#FFFFFF"
+            return "#9CA3AF"
 
     def create_default_node(self) -> Dict[str, Any]:
         label = f"{self._next_vertex_number}."

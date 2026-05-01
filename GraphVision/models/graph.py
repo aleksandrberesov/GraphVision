@@ -46,7 +46,7 @@ class GraphState(rx.State):
             'type': 'vertex',
             'data': {
                 'label': label,
-                'status': '',
+                'status': 'setted',
                 'transformation_class': '',
                 'transformation_config': {},
             },

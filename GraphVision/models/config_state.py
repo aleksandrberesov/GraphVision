@@ -67,8 +67,9 @@ class ConfigState(rx.State):
         else:
             self.param_schema = []
 
+        from .auth_state import AuthState
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
-            self.router.session.client_token, parent_id
+            (await self.get_state(AuthState)).user_id, parent_id
         )
         if cols_by_type:
             cols: List[str] = []
@@ -99,8 +100,9 @@ class ConfigState(rx.State):
         self.is_edit_mode = False
         self.vertex_id_editing = ""
 
+        from .auth_state import AuthState
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
-            self.router.session.client_token, parent_id
+            (await self.get_state(AuthState)).user_id, parent_id
         )
         if cols_by_type:
             cols: List[str] = []
@@ -166,9 +168,10 @@ class ConfigState(rx.State):
             self.selected_class = ""
             self.param_schema = []
 
+        from .auth_state import AuthState
         self.available_columns = []
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
-            self.router.session.client_token, vertex_id
+            (await self.get_state(AuthState)).user_id, vertex_id
         )
         if cols_by_type:
             cols: List[str] = []
@@ -257,9 +260,10 @@ class ConfigState(rx.State):
         self.is_open = False
 
         if self.is_edit_mode:
+            from .auth_state import AuthState
             from . import pipeline_hooks
             pipeline_hooks.update_transformation_config(
-                self.router.session.client_token,
+                (await self.get_state(AuthState)).user_id,
                 self.vertex_id_editing,
                 self.selected_class,
                 config,

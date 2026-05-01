@@ -11,10 +11,11 @@ class SchemaState(rx.State):
 
     @rx.event
     async def open_schema(self):
+        from .auth_state import AuthState
         from . import pipeline_hooks
         from .busy_state import BusyState
 
-        session_id = self.router.session.client_token
+        session_id = (await self.get_state(AuthState)).user_id
         if not pipeline_hooks.get_pipeline(session_id):
             return
         yield BusyState.show("Loading schema...")
@@ -37,10 +38,11 @@ class SchemaState(rx.State):
 
     @rx.event
     async def save_schema(self):
+        from .auth_state import AuthState
         from . import pipeline_hooks
         from .busy_state import BusyState
 
-        session_id = self.router.session.client_token
+        session_id = (await self.get_state(AuthState)).user_id
         yield BusyState.show("Saving schema...")
         schema_dict = {r["name"]: r["type"] for r in self.rows}
         pipeline_hooks.update_schema(session_id, schema_dict)

@@ -26,6 +26,7 @@ class GraphState(rx.State):
 
     json_upload: list[rx.UploadFile] = []
     data_loaded: bool = False
+    project_name: str = "default"
 
     def _get_color_by_status(self, status: str) -> str:
         if status == "setted":
@@ -173,9 +174,11 @@ class GraphState(rx.State):
 
     @rx.event
     async def handle_upload(self, files: list[rx.UploadFile]):
+        from .auth_state import AuthState
         from .busy_state import BusyState
         yield BusyState.show("Uploading file...")
         try:
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             for file in files:
                 data = await file.read()
                 if file.name is None:
@@ -192,7 +195,7 @@ class GraphState(rx.State):
                     yield BusyState.show("Processing dataset...")
                     from . import pipeline_hooks
                     result = pipeline_hooks.attach_data(
-                        self.router.session.client_token,
+                        session_id,
                         str(path),
                         ext,
                         None
@@ -207,7 +210,7 @@ class GraphState(rx.State):
                             existing["data"]["label"] = stem
                         self.title = stem
                         self.nodes = pipeline_hooks.sync_statuses(
-                            self.router.session.client_token, self.nodes
+                            session_id, self.nodes
                         )
         finally:
             yield BusyState.hide()
@@ -289,6 +292,7 @@ class GraphState(rx.State):
 
     @rx.event
     async def create_new_graph(self):
+        from .auth_state import AuthState
         from .busy_state import BusyState
         root_vertex_id = ""
         yield BusyState.show("Creating graph...")
@@ -300,8 +304,9 @@ class GraphState(rx.State):
             self.selected_edge_id = ""
             self._next_vertex_number = 1
 
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
-            result = pipeline_hooks.new_pipeline(self.router.session.client_token)
+            result = pipeline_hooks.new_pipeline(session_id)
             if result is not None:
                 root_vertex_id, _ = result
                 self.nodes.append(self._create_root_node(root_vertex_id))
@@ -315,6 +320,7 @@ class GraphState(rx.State):
     async def create_graph_with_data(self):
         root_vertex_id = ""
 
+        from .auth_state import AuthState
         from .busy_state import BusyState
         if not self._dataset_path:
             return
@@ -327,10 +333,11 @@ class GraphState(rx.State):
             self.selected_edge_id = ""
             self._next_vertex_number = 1
 
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
             schema_path: Optional[str] = self._schema_path if self._schema_path else None
             result = pipeline_hooks.attach_data(
-                self.router.session.client_token,
+                session_id,
                 self._dataset_path,
                 self._dataset_ext,
                 schema_path,
@@ -342,9 +349,10 @@ class GraphState(rx.State):
                 self.title = stem
                 self.data_loaded = True
                 self.nodes = pipeline_hooks.sync_statuses(
-                    self.router.session.client_token, self.nodes
+                    session_id, self.nodes
                 )
-                
+
+            pipeline_hooks.persist_pipeline(session_id)
 
             self._dataset_path = ""
             self._schema_path = ""
@@ -378,7 +386,7 @@ class GraphState(rx.State):
             if change["type"] == "select":
                 node = next((node for node in self.nodes if node["id"] == change["id"]), None)
                 if node:
-                    return self._select_node(node["id"])                 
+                    return self._select_node(node["id"])
 
     @rx.event
     def on_edges_change(self, edge_changes: List[Dict[str, Any]]):
@@ -393,20 +401,34 @@ class GraphState(rx.State):
     # ------------------------------------------------------------------
 
     @rx.event
-    def sync_from_pipeline(self):
-        """Reload nodes and edges from the attached PipelineGraph."""
+    async def restore_session(self):
+        """On page load: reload nodes/edges from memory or disk for the current user."""
+        from .auth_state import AuthState
         from . import pipeline_hooks
-        result = pipeline_hooks.pipeline_to_ui(self.router.session.client_token)
+        user_id = (await self.get_state(AuthState)).user_id
+        if not user_id:
+            return
+        session_id = f"{user_id}::{self.project_name}"
+        result = pipeline_hooks.restore_pipeline(session_id)
+        if result is not None:
+            self.nodes, self.edges = result
+            self.data_loaded = True
+
+    @rx.event
+    async def sync_from_pipeline(self):
+        from .auth_state import AuthState
+        from . import pipeline_hooks
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
+        result = pipeline_hooks.pipeline_to_ui(session_id)
         if result is not None:
             self.nodes, self.edges = result
 
     @rx.event
-    def refresh_statuses_from_pipeline(self):
-        """Update node colours/statuses to reflect current vertex states."""
+    async def refresh_statuses_from_pipeline(self):
+        from .auth_state import AuthState
         from . import pipeline_hooks
-        self.nodes = pipeline_hooks.sync_statuses(
-            self.router.session.client_token, self.nodes
-        )
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
+        self.nodes = pipeline_hooks.sync_statuses(session_id, self.nodes)
 
     # ------------------------------------------------------------------
     # Pipeline operations triggered from the UI
@@ -414,18 +436,18 @@ class GraphState(rx.State):
 
     @rx.event
     async def manifest_node(self, node_id: str):
-        """Fit and apply the transformation at node_id in the pipeline."""
+        from .auth_state import AuthState
         from .busy_state import BusyState
         yield BusyState.show("Applying transformation...")
         try:
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
-            error = pipeline_hooks.manifest_vertex(self.router.session.client_token, node_id)
-            self.nodes = pipeline_hooks.sync_statuses(
-                self.router.session.client_token, self.nodes
-            )
+            error = pipeline_hooks.manifest_vertex(session_id, node_id)
+            self.nodes = pipeline_hooks.sync_statuses(session_id, self.nodes)
             from .node import NodeState
             updated_node = next((n for n in self.nodes if n["id"] == node_id), None)
             yield NodeState.set_node(updated_node)
+            pipeline_hooks.persist_pipeline(session_id)
             if error is None:
                 yield rx.toast.success("Applied!")
             else:
@@ -435,8 +457,8 @@ class GraphState(rx.State):
 
     @rx.event
     async def add_transformation_node(self, transformation_class: str, config: Dict[str, Any]):
-        """Add a new node+transformation to both the UI and the pipeline."""
         import asyncio
+        from .auth_state import AuthState
         from .busy_state import BusyState
         new_node = self.create_default_node()
         yield BusyState.show("Adding transformation...")
@@ -451,9 +473,10 @@ class GraphState(rx.State):
                 self.add_edge(parent_id, new_node["id"])
                 self.arrange_nodes_in_row(parent_id)
 
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
             registered_id = pipeline_hooks.add_transformation(
-                self.router.session.client_token,
+                session_id,
                 parent_id,
                 transformation_class,
                 config,
@@ -468,28 +491,80 @@ class GraphState(rx.State):
                 yield rx.toast.error("Failed to add transformer — no dataset loaded?")
                 return
 
+            pipeline_hooks.persist_pipeline(session_id)
+
         finally:
             yield BusyState.hide()
             yield self._select_node(new_node["id"])
+
+    # ------------------------------------------------------------------
+    # Multi-project support
+    # ------------------------------------------------------------------
+
+    @rx.event
+    async def switch_project(self, name: str):
+        """Save current pipeline, then load the named project for this user."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from . import pipeline_hooks
+        user_id = (await self.get_state(AuthState)).user_id
+        if not user_id or not name:
+            return
+        pipeline_hooks.persist_pipeline(f"{user_id}::{self.project_name}")
+        self.project_name = name
+        yield BusyState.show(f"Opening project '{name}'…")
+        try:
+            result = pipeline_hooks.restore_pipeline(f"{user_id}::{name}")
+            if result is not None:
+                self.nodes, self.edges = result
+                self.data_loaded = True
+            else:
+                self.nodes = []
+                self.edges = []
+                self.data_loaded = False
+                self.title = ""
+        finally:
+            yield BusyState.hide()
+
+    @rx.event
+    async def new_project(self, name: str):
+        """Save current pipeline and start a blank project with the given name."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from . import pipeline_hooks
+        user_id = (await self.get_state(AuthState)).user_id
+        if not user_id or not name:
+            return
+        pipeline_hooks.persist_pipeline(f"{user_id}::{self.project_name}")
+        self.project_name = name
+        self.nodes = []
+        self.edges = []
+        self.data_loaded = False
+        self.title = ""
+        self.selected_node_id = ""
+        self.selected_edge_id = ""
+        self._next_vertex_number = 1
 
     # ------------------------------------------------------------------
     # Pipeline serialisation
     # ------------------------------------------------------------------
 
     @rx.event
-    def save_pipeline_yaml(self, path: str):
-        """Save the attached PipelineGraph to a YAML file."""
+    async def save_pipeline_yaml(self, path: str):
+        from .auth_state import AuthState
         from . import pipeline_hooks
-        pipeline_hooks.save_yaml(self.router.session.client_token, path)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
+        pipeline_hooks.save_yaml(session_id, path)
 
     @rx.event
     async def load_pipeline_yaml(self, path: str):
-        """Load a PipelineGraph from YAML and sync the UI."""
+        from .auth_state import AuthState
         from .busy_state import BusyState
         yield BusyState.show("Loading pipeline...")
         try:
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
-            result = pipeline_hooks.load_yaml(self.router.session.client_token, path)
+            result = pipeline_hooks.load_yaml(session_id, path)
             if result is not None:
                 self.nodes, self.edges = result
                 self.data_loaded = True

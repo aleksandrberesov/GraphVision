@@ -39,7 +39,8 @@ class PlotState(rx.State):
         self.is_open = value
 
     @rx.event
-    def load_for_node(self, node_id: str):
+    async def load_for_node(self, node_id: str):
+        from .auth_state import AuthState
         self.current_node_id = node_id
         self.dist_data = []
         self.dist_stats_str = ""
@@ -51,7 +52,7 @@ class PlotState(rx.State):
             return
 
         from . import pipeline_hooks
-        session_id = self.router.session.client_token
+        session_id = (await self.get_state(AuthState)).user_id
 
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
             session_id, node_id
@@ -73,11 +74,11 @@ class PlotState(rx.State):
         self._load_correlation(session_id, node_id)
 
     @rx.event
-    def change_column(self, column: str):
+    async def change_column(self, column: str):
+        from .auth_state import AuthState
         self.selected_column = column
-        self._load_distribution(
-            self.router.session.client_token, self.current_node_id, column
-        )
+        session_id = (await self.get_state(AuthState)).user_id
+        self._load_distribution(session_id, self.current_node_id, column)
 
     # ------------------------------------------------------------------
     # Internal helpers (not event handlers)

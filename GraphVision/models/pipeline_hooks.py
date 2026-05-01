@@ -114,6 +114,26 @@ compute_correlation: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambd
 
 
 # ---------------------------------------------------------------------------
+# Session persistence
+# ---------------------------------------------------------------------------
+
+# (session_id: str) -> Optional[Tuple[List[Dict], List[Dict]]]
+# Load or restore the pipeline for session_id (from memory or disk).
+# Returns (nodes, edges) if a pipeline exists, None otherwise.
+restore_pipeline: Callable[
+    [str], Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]
+] = lambda _: None
+
+# (session_id: str) -> None
+# Persist the current in-memory pipeline to disk (best-effort).
+persist_pipeline: Callable[[str], None] = lambda _: None
+
+# (user_id: str) -> List[str]
+# Return the list of project names saved on disk for the given user.
+list_projects: Callable[[str], List[str]] = lambda _: []
+
+
+# ---------------------------------------------------------------------------
 # Schema editing
 # ---------------------------------------------------------------------------
 

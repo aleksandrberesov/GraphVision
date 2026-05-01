@@ -11,3 +11,9 @@ class AuthState(LoginState):
         if user.id is not None and user.id >= 0:
             return str(user.username)
         return ""
+
+    @rx.event
+    def do_logout(self):
+        from .graph import GraphState
+        yield GraphState.clear_graph
+        yield super().do_logout()

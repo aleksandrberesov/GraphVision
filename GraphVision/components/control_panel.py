@@ -2,6 +2,7 @@ import reflex as rx
 from ..models import GraphState as State
 from ..models import NodeState as Node
 from ..models.config_state import ConfigState
+from ..models.schema_state import SchemaState
 from .config_panel import config_panel
 from .results_panel import results_panel
 from .upload_box import upload_box
@@ -43,14 +44,14 @@ def _vertex_properties() -> rx.Component:
                     Node.is_root,
                     rx.button(
                         "Configure schema",
+                        on_click=SchemaState.open_schema,
                         width="100%",
                         variant="soft",
-                        color_scheme="gray",
-                        disabled=True,
+                        color_scheme="blue",
                     ),
                     rx.button(
                         "Configure transformer",
-                        on_click=ConfigState.open_dialog,
+                        on_click=ConfigState.open_edit_dialog,
                         width="100%",
                         variant="soft",
                     ),

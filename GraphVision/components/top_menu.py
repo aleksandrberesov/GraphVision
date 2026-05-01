@@ -2,6 +2,7 @@ import reflex as rx
 
 from ..models import DialogState
 from ..models.config_state import ConfigState
+from ..models.schema_state import SchemaState
 
 
 def top_menu() -> rx.Component:
@@ -16,6 +17,8 @@ def top_menu() -> rx.Component:
                 rx.menu.item("Upload graph", on_click=DialogState.open_load),
                 rx.menu.separator(),
                 rx.menu.item("Save graph", on_click=DialogState.open_save),
+                rx.menu.separator(),
+                rx.menu.item("Edit schema", on_click=SchemaState.open_schema),
             ),
         ),
         rx.menu.root(

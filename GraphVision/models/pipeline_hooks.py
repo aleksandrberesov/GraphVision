@@ -110,3 +110,26 @@ compute_distribution: Callable[[str, str, str], Optional[Dict[str, Any]]] = lamb
 # (session_id: str, vertex_id: str, method: str) -> Optional[Dict[str, Any]]
 # Compute or retrieve cached correlation matrix. Returns {col: {row: float}}.
 compute_correlation: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
+
+
+# ---------------------------------------------------------------------------
+# Schema editing
+# ---------------------------------------------------------------------------
+
+# (session_id: str) -> Optional[List[Dict[str, str]]]
+# Return [{name, type}] for all columns in the root vertex schema.
+# type is one of: numeric, categorical, ordered_categorical, service, excluded.
+get_schema: Callable[[str], Optional[List[Dict[str, str]]]] = lambda _: None
+
+# (session_id: str, schema_dict: Dict[str, str]) -> None
+# Reassign column types in the root vertex schema based on {col_name: type} mapping.
+update_schema: Callable[[str, Dict[str, str]], None] = lambda *_: None
+
+
+# ---------------------------------------------------------------------------
+# Transformation config editing
+# ---------------------------------------------------------------------------
+
+# (session_id: str, vertex_id: str, class_name: str, config: Dict[str, Any]) -> None
+# Update the transformation config for an existing vertex and reset its state to 'initialized'.
+update_transformation_config: Callable[[str, str, str, Dict[str, Any]], None] = lambda *_: None

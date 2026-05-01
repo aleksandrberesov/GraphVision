@@ -63,64 +63,57 @@ def _param_input(param: Dict[str, Any]) -> rx.Component:
 
 
 def config_panel() -> rx.Component:
-    return rx.fragment(
-        rx.button(
-            "Add transformation",
-            on_click=ConfigState.open_dialog,
-            width="100%",
-        ),
-        rx.dialog.root(
-            rx.dialog.content(
-                rx.dialog.title("Add Transformation"),
-                rx.vstack(
-                    rx.select(
-                        ConfigState.transformer_names,
-                        placeholder="Select transformer…",
-                        value=ConfigState.selected_class,
-                        on_change=ConfigState.select_class,
-                        width="100%",
-                    ),
-                    rx.cond(
-                        ConfigState.param_schema,
-                        rx.vstack(
-                            rx.foreach(ConfigState.param_schema, _param_input),
-                            width="100%",
-                            spacing="3",
-                            max_height="350px",
-                            overflow_y="auto",
-                        ),
-                        rx.cond(
-                            ConfigState.selected_class != "",
-                            rx.text(
-                                "No parameters required.",
-                                color="gray",
-                                font_size="sm",
-                            ),
-                            rx.fragment(),
-                        ),
-                    ),
-                    rx.hstack(
-                        rx.button(
-                            "Cancel",
-                            on_click=ConfigState.close_dialog,
-                            variant="outline",
-                            color_scheme="gray",
-                        ),
-                        rx.button(
-                            "Add",
-                            on_click=ConfigState.submit,
-                            disabled=ConfigState.selected_class == "",
-                        ),
-                        spacing="3",
-                        justify="end",
-                        width="100%",
-                    ),
-                    spacing="4",
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.dialog.title("Configure transformer"),
+            rx.vstack(
+                rx.select(
+                    ConfigState.transformer_names,
+                    placeholder="Select transformer…",
+                    value=ConfigState.selected_class,
+                    on_change=ConfigState.select_class,
                     width="100%",
                 ),
-                max_width="480px",
+                rx.cond(
+                    ConfigState.param_schema,
+                    rx.vstack(
+                        rx.foreach(ConfigState.param_schema, _param_input),
+                        width="100%",
+                        spacing="3",
+                        max_height="350px",
+                        overflow_y="auto",
+                    ),
+                    rx.cond(
+                        ConfigState.selected_class != "",
+                        rx.text(
+                            "No parameters required.",
+                            color="gray",
+                            font_size="sm",
+                        ),
+                        rx.fragment(),
+                    ),
+                ),
+                rx.hstack(
+                    rx.button(
+                        "Cancel",
+                        on_click=ConfigState.close_dialog,
+                        variant="outline",
+                        color_scheme="gray",
+                    ),
+                    rx.button(
+                        rx.cond(ConfigState.is_edit_mode, "Save", "Add"),
+                        on_click=ConfigState.submit,
+                        disabled=ConfigState.selected_class == "",
+                    ),
+                    spacing="3",
+                    justify="end",
+                    width="100%",
+                ),
+                spacing="4",
+                width="100%",
             ),
-            open=ConfigState.is_open,
-            on_open_change=ConfigState.set_is_open,
+            max_width="480px",
         ),
+        open=ConfigState.is_open,
+        on_open_change=ConfigState.set_is_open,
     )

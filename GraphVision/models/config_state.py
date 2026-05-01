@@ -7,6 +7,8 @@ import reflex as rx
 
 class ConfigState(rx.State):
     is_open: bool = False
+    is_edit_mode: bool = False
+    vertex_id_editing: str = ""
     selected_class: str = ""
     # Each item: {name, annotation, required, default, is_list, is_bool, value}
     # 'value' is always a string; list params stored as comma-separated.
@@ -32,7 +34,7 @@ class ConfigState(rx.State):
 
     @rx.event
     async def open_dialog_with_class(self, class_name: str):
-        """Open the config dialog with class_name pre-selected."""
+        """Open the config dialog with class_name pre-selected (add mode)."""
         from . import pipeline_hooks
         from .busy_state import BusyState
         from .graph import GraphState
@@ -46,6 +48,8 @@ class ConfigState(rx.State):
         self.transformer_names = pipeline_hooks.available_transformers()
         self.selected_class = class_name
         self.available_columns = []
+        self.is_edit_mode = False
+        self.vertex_id_editing = ""
 
         schema = pipeline_hooks.describe_transformer(class_name)
         if schema is not None:
@@ -77,6 +81,7 @@ class ConfigState(rx.State):
 
     @rx.event
     async def open_dialog(self):
+        """Open the config dialog with no class pre-selected (add mode)."""
         from . import pipeline_hooks
         from .busy_state import BusyState
         from .graph import GraphState
@@ -91,6 +96,8 @@ class ConfigState(rx.State):
         self.selected_class = ""
         self.param_schema = []
         self.available_columns = []
+        self.is_edit_mode = False
+        self.vertex_id_editing = ""
 
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
             self.router.session.client_token, parent_id
@@ -105,12 +112,87 @@ class ConfigState(rx.State):
         self.is_open = True
 
     @rx.event
+    async def open_edit_dialog(self):
+        """Open the config dialog pre-filled with the selected vertex's existing config (edit mode)."""
+        from . import pipeline_hooks
+        from .busy_state import BusyState
+        from .graph import GraphState
+
+        if not self.transformer_names and not pipeline_hooks.is_transformers_cached():
+            yield BusyState.show("Loading transformers...")
+
+        graph_state = await self.get_state(GraphState)
+        vertex_id = graph_state.selected_node_id
+        if not vertex_id:
+            return
+
+        self.transformer_names = pipeline_hooks.available_transformers()
+
+        node_data = next(
+            (n["data"] for n in graph_state.nodes if n["id"] == vertex_id),
+            None,
+        )
+
+        if node_data:
+            class_name: str = node_data.get("transformation_class", "")
+            existing_config: Dict[str, Any] = node_data.get("transformation_config", {})
+            self.selected_class = class_name
+
+            schema = pipeline_hooks.describe_transformer(class_name)
+            if schema is not None:
+                params = []
+                for p in schema["params"]:
+                    existing_value = existing_config.get(p["name"])
+                    if p["is_list"]:
+                        if isinstance(existing_value, list):
+                            initial = ", ".join(str(v) for v in existing_value)
+                        else:
+                            initial = ""
+                    elif p["is_bool"]:
+                        if existing_value is not None:
+                            initial = str(existing_value).lower()
+                        else:
+                            initial = "" if p["required"] else str(p["default"]).lower()
+                    else:
+                        if existing_value is not None:
+                            initial = str(existing_value)
+                        else:
+                            initial = "" if p["required"] else ("" if p["default"] is None else str(p["default"]))
+                    params.append({**p, "value": initial})
+                self.param_schema = params
+            else:
+                self.param_schema = []
+        else:
+            self.selected_class = ""
+            self.param_schema = []
+
+        self.available_columns = []
+        cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
+            self.router.session.client_token, vertex_id
+        )
+        if cols_by_type:
+            cols: List[str] = []
+            for col_list in cols_by_type.values():
+                cols.extend(col_list)
+            self.available_columns = cols
+
+        self.vertex_id_editing = vertex_id
+        self.is_edit_mode = True
+        yield BusyState.hide()
+        self.is_open = True
+
+    @rx.event
     def set_is_open(self, value: bool):
         self.is_open = value
+        if not value:
+            self.is_edit_mode = False
+            self.vertex_id_editing = ""
 
     @rx.event
     def close_dialog(self):
         self.is_open = False
+        self.is_edit_mode = False
+        self.vertex_id_editing = ""
 
     @rx.event
     def select_class(self, class_name: str):
@@ -173,4 +255,17 @@ class ConfigState(rx.State):
 
         from .graph import GraphState
         self.is_open = False
-        return GraphState.add_transformation_node(self.selected_class, config)
+
+        if self.is_edit_mode:
+            from . import pipeline_hooks
+            pipeline_hooks.update_transformation_config(
+                self.router.session.client_token,
+                self.vertex_id_editing,
+                self.selected_class,
+                config,
+            )
+            self.is_edit_mode = False
+            self.vertex_id_editing = ""
+            return GraphState.refresh_statuses_from_pipeline()
+        else:
+            return GraphState.add_transformation_node(self.selected_class, config)

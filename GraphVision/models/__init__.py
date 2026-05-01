@@ -4,6 +4,7 @@ from .graph import GraphState
 from .node import NodeState
 from .config_state import ConfigState
 from .plot_state import PlotState
+from .schema_state import SchemaState
 
 __all__ = [
     "BusyState",
@@ -12,4 +13,5 @@ __all__ = [
     "NodeState",
     "ConfigState",
     "PlotState",
+    "SchemaState",
 ]

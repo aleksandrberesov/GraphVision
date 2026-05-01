@@ -4,6 +4,7 @@ from ..components import (
     plot_layout,
     control_panel,
     top_menu,
+    schema_panel,
 )
 from ..models import GraphState as State
 from ..models.busy_state import BusyState
@@ -27,6 +28,7 @@ def main_page() -> rx.Component:
             spacing="1",
             bg="white",
         ),
+        schema_panel(),
         rx.cond(
             BusyState.is_busy,
             rx.box(

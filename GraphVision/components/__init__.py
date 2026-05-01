@@ -5,6 +5,7 @@ from .results_panel import results_panel
 from .upload_box import upload_box
 from .transformer_palette import transformer_palette
 from .top_menu import top_menu
+from .schema_panel import schema_panel
 
 __all__ = [
     "plot_layout",
@@ -14,4 +15,5 @@ __all__ = [
     "upload_box",
     "transformer_palette",
     "top_menu",
+    "schema_panel",
 ]

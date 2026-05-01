@@ -25,6 +25,7 @@ class GraphState(rx.State):
     _json_path: str = ""
 
     json_upload: list[rx.UploadFile] = []
+    data_loaded: bool = False
 
     def _get_color_by_status(self, status: str) -> str:
         if status == "setted":
@@ -339,6 +340,7 @@ class GraphState(rx.State):
                 self.nodes = [self._create_root_node(root_vertex_id)]
                 self.edges = []
                 self.title = stem
+                self.data_loaded = True
                 self.nodes = pipeline_hooks.sync_statuses(
                     self.router.session.client_token, self.nodes
                 )
@@ -417,12 +419,17 @@ class GraphState(rx.State):
         yield BusyState.show("Applying transformation...")
         try:
             from . import pipeline_hooks
-            ok = pipeline_hooks.manifest_vertex(self.router.session.client_token, node_id)
-            if ok:
-                self.nodes = pipeline_hooks.sync_statuses(
-                    self.router.session.client_token, self.nodes
-                )
+            error = pipeline_hooks.manifest_vertex(self.router.session.client_token, node_id)
+            self.nodes = pipeline_hooks.sync_statuses(
+                self.router.session.client_token, self.nodes
+            )
+            from .node import NodeState
+            updated_node = next((n for n in self.nodes if n["id"] == node_id), None)
+            yield NodeState.set_node(updated_node)
+            if error is None:
                 yield rx.toast.success("Applied!")
+            else:
+                yield rx.toast.error(error)
         finally:
             yield BusyState.hide()
 
@@ -445,13 +452,21 @@ class GraphState(rx.State):
                 self.arrange_nodes_in_row(parent_id)
 
             from . import pipeline_hooks
-            pipeline_hooks.add_transformation(
+            registered_id = pipeline_hooks.add_transformation(
                 self.router.session.client_token,
                 parent_id,
                 transformation_class,
                 config,
                 new_node["id"],
             )
+            if registered_id is None:
+                self.nodes = [n for n in self.nodes if n["id"] != new_node["id"]]
+                self.edges = [
+                    e for e in self.edges
+                    if e["source"] != new_node["id"] and e["target"] != new_node["id"]
+                ]
+                yield rx.toast.error("Failed to add transformer — no dataset loaded?")
+                return
 
         finally:
             yield BusyState.hide()
@@ -477,5 +492,6 @@ class GraphState(rx.State):
             result = pipeline_hooks.load_yaml(self.router.session.client_token, path)
             if result is not None:
                 self.nodes, self.edges = result
+                self.data_loaded = True
         finally:
             yield BusyState.hide()

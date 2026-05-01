@@ -108,6 +108,16 @@ def _vertex_properties() -> rx.Component:
 
 def control_panel() -> rx.Component:
     return rx.vstack(
+        rx.cond(
+            ~State.data_loaded,
+            rx.callout(
+                "No dataset loaded. Use File → New graph to get started.",
+                icon="triangle_alert",
+                color_scheme="orange",
+                width="100%",
+            ),
+            rx.fragment(),
+        ),
         # ── Top: graph identity + graph-level actions ──
         rx.vstack(
             rx.input(

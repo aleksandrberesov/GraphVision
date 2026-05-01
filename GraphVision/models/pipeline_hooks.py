@@ -64,9 +64,10 @@ attach_data: Callable[
 # Pipeline operations
 # ---------------------------------------------------------------------------
 
-# (session_id: str, node_id: str) -> bool
-# Fit and apply the transformation at node_id.  Returns True on success.
-manifest_vertex: Callable[[str, str], bool] = lambda *_: False
+# (session_id: str, node_id: str) -> Optional[str]
+# Fit and apply the transformation at node_id.
+# Returns None on success, or an error message string on failure.
+manifest_vertex: Callable[[str, str], Optional[str]] = lambda *_: "No backend connected"
 
 # (session_id: str, parent_id: str, class_name: str, config: Dict, ui_node_id: str) -> Optional[str]
 # Add a transformation to the pipeline.  Returns the vertex_id used (may equal

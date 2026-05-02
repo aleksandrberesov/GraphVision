@@ -7,6 +7,7 @@ __pycache__/
 node_modules
 .dev/
 uploaded_files/
+user_pipelines/
 *.egg-info/
 **/*.egg-info/
 transformers.log

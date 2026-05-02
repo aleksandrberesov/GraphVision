@@ -20,6 +20,70 @@ def _corr_color(val: float) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+_STABILITY_META: List[tuple] = [
+    ("condition_number", "Condition number",
+     "Ratio of largest to smallest eigenvalue. >1000 may indicate ill-conditioning."),
+    ("rank", "Rank",
+     "Effective rank of the matrix. Should equal the number of columns."),
+    ("determinant", "Determinant",
+     "Matrix determinant. Near zero indicates near-linear dependence."),
+    ("eigenvalue_min", "Eigenvalue (min)",
+     "Smallest eigenvalue. Near zero suggests rank deficiency."),
+    ("eigenvalue_max", "Eigenvalue (max)",
+     "Largest eigenvalue."),
+    ("vif_max", "VIF max",
+     "Maximum Variance Inflation Factor. >10 indicates strong multicollinearity."),
+]
+
+
+def _build_stability_html(stability: Dict[str, Any]) -> str:
+    if not stability:
+        return ""
+    expected_rank = stability.get("expected_rank")
+    td = "padding:3px 8px;font-size:10px"
+    rows_html = ""
+    for key, label, tooltip in _STABILITY_META:
+        val = stability.get(key)
+        if val is None:
+            continue
+        if key == "rank":
+            val_str = str(int(val))
+            if expected_rank is not None and int(val) < int(expected_rank):
+                val_str = f"{val_str} / {expected_rank}"
+                color = "#ef4444"
+            else:
+                color = "inherit"
+        else:
+            val_str = f"{float(val):.4g}"
+            if key == "condition_number" and float(val) > 1000:
+                color = "#ef4444"
+            elif key == "vif_max" and float(val) > 10:
+                color = "#f97316"
+            else:
+                color = "inherit"
+        rows_html += (
+            f"<tr>"
+            f"<td style='{td}' title='{tooltip}'>{label}</td>"
+            f"<td style='{td};text-align:right;color:{color};font-weight:500'>{val_str}</td>"
+            f"</tr>"
+        )
+    if not rows_html:
+        return ""
+    return (
+        "<div style='margin-top:12px'>"
+        "<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>"
+        "Matrix stability (Pearson)</div>"
+        "<table style='border-collapse:collapse;width:100%;background:#f9fafb;"
+        "border-radius:4px;border:1px solid #e5e7eb'>"
+        f"<thead><tr>"
+        f"<th style='{td};color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:left'>Metric</th>"
+        f"<th style='{td};color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:right'>Value</th>"
+        f"</tr></thead>"
+        f"<tbody>{rows_html}</tbody>"
+        "</table></div>"
+    )
+
+
 class PlotState(rx.State):
     is_open: bool = False
     current_node_id: str = ""
@@ -29,6 +93,7 @@ class PlotState(rx.State):
     dist_data: List[Dict[str, Any]] = []
     dist_stats_str: str = ""
     corr_html: str = ""
+    corr_stability_html: str = ""
 
     @rx.event
     def open_modal(self):
@@ -45,6 +110,7 @@ class PlotState(rx.State):
         self.dist_data = []
         self.dist_stats_str = ""
         self.corr_html = ""
+        self.corr_stability_html = ""
 
         if not node_id:
             self.column_names = []
@@ -119,10 +185,21 @@ class PlotState(rx.State):
     def _load_correlation(self, session_id: str, node_id: str) -> None:
         from . import pipeline_hooks
 
-        matrix = pipeline_hooks.compute_correlation(session_id, node_id, "pearson")
-        if not matrix:
+        result = pipeline_hooks.compute_correlation(session_id, node_id, "pearson")
+        if not result:
             self.corr_html = ""
+            self.corr_stability_html = ""
             return
+
+        # Support both legacy {col: {row: float}} and new {"matrix": ..., "stability": ...}
+        if "matrix" in result and isinstance(result.get("matrix"), dict):
+            matrix = result["matrix"]
+            stability = result.get("stability") or {}
+        else:
+            matrix = result
+            stability = {}
+
+        self.corr_stability_html = _build_stability_html(stability)
 
         cols = list(matrix.keys())
         cell_style = "width:48px;height:36px;text-align:center;font-size:9px;border:1px solid #e2e8f0"

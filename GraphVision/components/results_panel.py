@@ -52,7 +52,15 @@ def _distribution_tab() -> rx.Component:
 def _correlation_tab() -> rx.Component:
     return rx.cond(
         PlotState.corr_html != "",
-        rx.html(PlotState.corr_html),
+        rx.vstack(
+            rx.html(PlotState.corr_html),
+            rx.cond(
+                PlotState.corr_stability_html != "",
+                rx.html(PlotState.corr_stability_html),
+            ),
+            width="100%",
+            spacing="1",
+        ),
         rx.text(
             "No correlation data — select a manifested node.",
             color="gray",

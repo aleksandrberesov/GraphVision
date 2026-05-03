@@ -103,21 +103,40 @@ describe_transformer: Callable[[str], Optional[Dict[str, Any]]] = lambda _: None
 # Returns None if vertex not found or not yet manifested.
 get_vertex_columns: Callable[[str, str], Optional[Dict[str, List[str]]]] = lambda *_: None
 
-# (session_id: str, vertex_id: str, column: str) -> Optional[Dict[str, Any]]
+# (session_id: str, vertex_id: str, column: str, row_filter=None) -> Optional[Dict[str, Any]]
 # Compute or retrieve cached distribution for a column at a vertex.
-# Result keys: histogram (List[float]), kde (optional), statistics (Dict).
-compute_distribution: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
+# Result keys: histogram (List[float]), kde_curve (List[{x,y}]), statistics (Dict).
+# row_filter: Optional[List[Dict]] — categorical/numeric filter applied before computing.
+compute_distribution: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
 
-# (session_id: str, vertex_id: str, method: str) -> Optional[Dict[str, Any]]
+# (session_id: str, vertex_id: str, method: str, row_filter=None) -> Optional[Dict[str, Any]]
 # Compute or retrieve cached correlation matrix.
 # Returns {"matrix": {col: {row: float}}, "stability": {metric: value}}.
-compute_correlation: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
+# row_filter: Optional[List[Dict]] — applied before computing.
+compute_correlation: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
 
 # (session_id: str, vertex_id: str, column: str) -> Optional[Dict[str, Any]]
 # Fit 3-component Exponential+Gamma+Poisson mixture to a column.
 # Returns {"mixture": MixtureResult fields as dict, "curves": [{x,exp,gamma,poisson,total}]}.
 # Compute-on-demand — never auto-triggered.
 fit_column_distribution: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
+
+# (session_id: str, vertex_id: str, row_filter=None) -> Optional[Dict[str, Any]]
+# Compute feature importance via decision tree for the vertex data.
+# Returns FeatureImportanceResult as dict (importances, model_r2, warning).
+# row_filter: Optional[List[Dict]] — applied before computing.
+compute_vertex_feature_importance: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
+
+# (session_id, vertex_id, value_col, primary_col, secondary_col, row_filter=None) -> Optional[Dict]
+# Compute grouped stats and return pivoted data for a grouped bar chart.
+# Returns {"data": [{primary_cat, <secondary_vals>…}], "bar_specs": [{cat_name, color}], "warning"}.
+# row_filter: Optional[List[Dict]] — applied before computing.
+compute_vertex_grouped_stats: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
+
+# (session_id: str, vertex_id: str) -> Optional[Dict[str, Any]]
+# Return filter metadata for all visible columns at a vertex.
+# Returns {"columns": [{col, type, top_values or min/max}], "total_row_count": int}.
+get_column_filter_options: Callable[[str, str], Optional[Dict[str, Any]]] = lambda *_: None
 
 
 # ---------------------------------------------------------------------------

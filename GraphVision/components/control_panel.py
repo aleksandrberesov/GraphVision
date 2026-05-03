@@ -4,6 +4,7 @@ from ..models import NodeState as Node
 from ..models.config_state import ConfigState
 from ..models.schema_state import SchemaState
 from .config_panel import config_panel
+from .filter_panel import filter_panel
 from .results_panel import results_panel
 from .upload_box import upload_box
 from .transformer_palette import transformer_palette
@@ -57,6 +58,7 @@ def _vertex_properties() -> rx.Component:
                     ),
                 ),
                 config_panel(),
+                filter_panel(),
                 results_panel(),
                 rx.button(
                     "Apply",

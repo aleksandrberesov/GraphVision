@@ -92,6 +92,7 @@ class PlotState(rx.State):
     # [{x: str, count: float}, ...] for bar chart
     dist_data: List[Dict[str, Any]] = []
     dist_stats_str: str = ""
+    is_numeric_dist: bool = False
     corr_html: str = ""
     corr_stability_html: str = ""
 
@@ -109,6 +110,7 @@ class PlotState(rx.State):
         self.current_node_id = node_id
         self.dist_data = []
         self.dist_stats_str = ""
+        self.is_numeric_dist = False
         self.corr_html = ""
         self.corr_stability_html = ""
 
@@ -157,12 +159,32 @@ class PlotState(rx.State):
         if not result:
             self.dist_data = []
             self.dist_stats_str = ""
+            self.is_numeric_dist = False
             return
 
         histogram: List[float] = result.get("histogram", [])
-        self.dist_data = [
-            {"x": str(i), "count": float(v)} for i, v in enumerate(histogram)
-        ]
+        kde_curve: List[Dict[str, Any]] = result.get("kde_curve", [])
+
+        if kde_curve and histogram:
+            # Merge: for each histogram bin, sample the nearest KDE density value.
+            # This produces a unified 50-point dataset usable in ComposedChart.
+            n_bins = len(histogram)
+            n_kde = len(kde_curve)
+            merged = []
+            for i, count in enumerate(histogram):
+                kde_idx = min(int(i * n_kde / n_bins), n_kde - 1)
+                merged.append({
+                    "x": str(i),
+                    "count": float(count),
+                    "kde": float(kde_curve[kde_idx]["y"]),
+                })
+            self.dist_data = merged
+            self.is_numeric_dist = True
+        else:
+            self.dist_data = [
+                {"x": str(i), "count": float(v)} for i, v in enumerate(histogram)
+            ]
+            self.is_numeric_dist = False
 
         stats = result.get("statistics", {})
         if "mean" in stats:

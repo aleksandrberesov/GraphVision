@@ -3,6 +3,45 @@ import reflex as rx
 from ..models.plot_state import PlotState  # noqa: F401 — PlotState must be imported to register its state
 
 
+def _dist_chart() -> rx.Component:
+    return rx.cond(
+        PlotState.is_numeric_dist,
+        rx.recharts.composed_chart(
+            rx.recharts.bar(
+                data_key="count",
+                fill="#3B82F6",
+                fill_opacity=0.5,
+                y_axis_id="left",
+                name="Count",
+            ),
+            rx.recharts.line(
+                data_key="kde",
+                stroke="#ef4444",
+                dot=False,
+                y_axis_id="right",
+                name="Density (KDE)",
+            ),
+            rx.recharts.x_axis(data_key="x", tick=False),
+            rx.recharts.y_axis(y_axis_id="left", orientation="left", width=40),
+            rx.recharts.y_axis(y_axis_id="right", orientation="right", width=40),
+            rx.recharts.graphing_tooltip(),
+            rx.recharts.legend(),
+            data=PlotState.dist_data,
+            width="100%",
+            height=220,
+        ),
+        rx.recharts.bar_chart(
+            rx.recharts.bar(data_key="count", fill="#3B82F6"),
+            rx.recharts.x_axis(data_key="x", tick=False),
+            rx.recharts.y_axis(),
+            rx.recharts.graphing_tooltip(),
+            data=PlotState.dist_data,
+            width="100%",
+            height=220,
+        ),
+    )
+
+
 def _distribution_tab() -> rx.Component:
     return rx.vstack(
         rx.hstack(
@@ -19,15 +58,7 @@ def _distribution_tab() -> rx.Component:
         rx.cond(
             PlotState.dist_data,
             rx.vstack(
-                rx.recharts.bar_chart(
-                    rx.recharts.bar(data_key="count", fill="#3B82F6"),
-                    rx.recharts.x_axis(data_key="x", tick=False),
-                    rx.recharts.y_axis(),
-                    rx.recharts.graphing_tooltip(),
-                    data=PlotState.dist_data,
-                    width="100%",
-                    height=200,
-                ),
+                _dist_chart(),
                 rx.text(
                     PlotState.dist_stats_str,
                     font_size="xs",

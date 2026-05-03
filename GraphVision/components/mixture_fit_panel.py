@@ -39,7 +39,7 @@ def _row(label: str, val_expr, color: str = "black") -> rx.Component:
 
 
 def mixture_fit_panel() -> rx.Component:
-    family = PlotState.mixture_result["recommended_family"]
+    family = PlotState.mixture_family
     return rx.vstack(
         # ── Family badge ──────────────────────────────────────────────────
         rx.hstack(
@@ -91,24 +91,24 @@ def mixture_fit_panel() -> rx.Component:
                 _row(
                     "Exponential",
                     rx.cond(
-                        PlotState.mixture_result["w_exp"],
-                        (PlotState.mixture_result["w_exp"] * 100).to_string() + "%",
+                        PlotState.mixture_w_exp,
+                        (PlotState.mixture_w_exp * 100).to_string() + "%",
                         "0%",
                     ),
                 ),
                 _row(
                     "Gamma",
                     rx.cond(
-                        PlotState.mixture_result["w_gamma"],
-                        (PlotState.mixture_result["w_gamma"] * 100).to_string() + "%",
+                        PlotState.mixture_w_gamma,
+                        (PlotState.mixture_w_gamma * 100).to_string() + "%",
                         "0%",
                     ),
                 ),
                 _row(
                     "Poisson",
                     rx.cond(
-                        PlotState.mixture_result["w_poisson"],
-                        (PlotState.mixture_result["w_poisson"] * 100).to_string() + "%",
+                        PlotState.mixture_w_poisson,
+                        (PlotState.mixture_w_poisson * 100).to_string() + "%",
                         "0%",
                     ),
                 ),

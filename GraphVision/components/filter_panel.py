@@ -7,12 +7,12 @@ from ..models.plot_state import PlotState
 
 
 def _cat_filter(col_meta: rx.Var) -> rx.Component:
-    col = col_meta["col"]
+    col = col_meta.col
     return rx.vstack(
         rx.text(col, font_size="xs", font_weight="500", color="#374151"),
         rx.vstack(
             rx.foreach(
-                col_meta["top_values"],
+                col_meta.top_values,
                 lambda val: rx.hstack(
                     rx.checkbox(
                         checked=FilterState.checked_cat_keys.contains(col + "__" + val),
@@ -34,7 +34,7 @@ def _cat_filter(col_meta: rx.Var) -> rx.Component:
 
 
 def _num_filter(col_meta: rx.Var) -> rx.Component:
-    col = col_meta["col"]
+    col = col_meta.col
     return rx.vstack(
         rx.text(col, font_size="xs", font_weight="500", color="#374151"),
         rx.hstack(
@@ -65,7 +65,7 @@ def _num_filter(col_meta: rx.Var) -> rx.Component:
 
 def _col_filter(col_meta: rx.Var) -> rx.Component:
     return rx.cond(
-        col_meta["type"] == "categorical",
+        col_meta.type == "categorical",
         _cat_filter(col_meta),
         _num_filter(col_meta),
     )

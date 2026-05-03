@@ -116,6 +116,22 @@ class PlotState(rx.State):
     corr_html: str = ""
     corr_stability_html: str = ""
 
+    @rx.var
+    def mixture_family(self) -> str:
+        return str(self.mixture_result.get("recommended_family", "unknown"))
+
+    @rx.var
+    def mixture_w_exp(self) -> float:
+        return float(self.mixture_result.get("w_exp", 0.0))
+
+    @rx.var
+    def mixture_w_gamma(self) -> float:
+        return float(self.mixture_result.get("w_gamma", 0.0))
+
+    @rx.var
+    def mixture_w_poisson(self) -> float:
+        return float(self.mixture_result.get("w_poisson", 0.0))
+
     @rx.event
     def open_modal(self):
         self.is_open = True

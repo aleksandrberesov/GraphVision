@@ -3,13 +3,21 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 import reflex as rx
+from pydantic import BaseModel
+
+
+class ColumnFilterMeta(BaseModel):
+    col: str = ""
+    type: str = ""  # "categorical" or "numeric"
+    top_values: List[str] = []
+    min: float = 0.0
+    max: float = 0.0
 
 
 class FilterState(rx.State):
     is_open: bool = False
     current_node_id: str = ""
-    # [{col, type, top_values or min/max}] from get_column_filter_options
-    filter_columns: List[Dict[str, Any]] = []
+    filter_columns: List[ColumnFilterMeta] = []
     total_row_count: int = 0
 
     # Categorical selections — flat "col__value" strings to avoid nested state
@@ -25,8 +33,8 @@ class FilterState(rx.State):
         spec: List[Dict[str, Any]] = []
 
         for col_meta in self.filter_columns:
-            col = col_meta["col"]
-            col_type = col_meta["type"]
+            col = col_meta.col
+            col_type = col_meta.type
 
             if col_type == "categorical":
                 prefix = col + "__"
@@ -95,7 +103,16 @@ class FilterState(rx.State):
         self.num_hi = {}
         result = pipeline_hooks.get_column_filter_options(session_id, node_id)
         if result:
-            self.filter_columns = result.get("columns", [])
+            self.filter_columns = [
+                ColumnFilterMeta(
+                    col=c["col"],
+                    type=c["type"],
+                    top_values=c.get("top_values", []),
+                    min=float(c.get("min", 0.0)),
+                    max=float(c.get("max", 0.0)),
+                )
+                for c in result.get("columns", [])
+            ]
             self.total_row_count = result.get("total_row_count", 0)
         else:
             self.filter_columns = []

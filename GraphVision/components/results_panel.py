@@ -1,6 +1,7 @@
 import reflex as rx
 
 from ..models.plot_state import PlotState  # noqa: F401 — PlotState must be imported to register its state
+from .mixture_fit_panel import mixture_fit_panel
 
 
 def _dist_chart() -> rx.Component:
@@ -64,6 +65,36 @@ def _distribution_tab() -> rx.Component:
                     font_size="xs",
                     color="gray",
                     text_align="center",
+                ),
+                # "Fit distribution" button — numeric columns only
+                rx.cond(
+                    PlotState.is_numeric_dist,
+                    rx.hstack(
+                        rx.button(
+                            rx.cond(
+                                PlotState.is_fitting,
+                                rx.hstack(
+                                    rx.spinner(size="1"),
+                                    rx.text("Fitting…"),
+                                    spacing="1",
+                                    align_items="center",
+                                ),
+                                rx.text("Fit distribution"),
+                            ),
+                            on_click=PlotState.fit_distribution,
+                            disabled=PlotState.is_fitting,
+                            size="1",
+                            variant="soft",
+                            color_scheme="blue",
+                        ),
+                        justify="end",
+                        width="100%",
+                    ),
+                ),
+                # Mixture fit panel — shown once results are available
+                rx.cond(
+                    PlotState.mixture_result,
+                    mixture_fit_panel(),
                 ),
                 width="100%",
                 spacing="2",

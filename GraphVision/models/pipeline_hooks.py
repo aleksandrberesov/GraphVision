@@ -109,8 +109,15 @@ get_vertex_columns: Callable[[str, str], Optional[Dict[str, List[str]]]] = lambd
 compute_distribution: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
 
 # (session_id: str, vertex_id: str, method: str) -> Optional[Dict[str, Any]]
-# Compute or retrieve cached correlation matrix. Returns {col: {row: float}}.
+# Compute or retrieve cached correlation matrix.
+# Returns {"matrix": {col: {row: float}}, "stability": {metric: value}}.
 compute_correlation: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
+
+# (session_id: str, vertex_id: str, column: str) -> Optional[Dict[str, Any]]
+# Fit 3-component Exponential+Gamma+Poisson mixture to a column.
+# Returns {"mixture": MixtureResult fields as dict, "curves": [{x,exp,gamma,poisson,total}]}.
+# Compute-on-demand — never auto-triggered.
+fit_column_distribution: Callable[[str, str, str], Optional[Dict[str, Any]]] = lambda *_: None
 
 
 # ---------------------------------------------------------------------------

@@ -93,6 +93,9 @@ class PlotState(rx.State):
     dist_data: List[Dict[str, Any]] = []
     dist_stats_str: str = ""
     is_numeric_dist: bool = False
+    mixture_result: Dict[str, Any] = {}
+    mixture_curves: List[Dict[str, Any]] = []
+    is_fitting: bool = False
     corr_html: str = ""
     corr_stability_html: str = ""
 
@@ -111,6 +114,9 @@ class PlotState(rx.State):
         self.dist_data = []
         self.dist_stats_str = ""
         self.is_numeric_dist = False
+        self.mixture_result = {}
+        self.mixture_curves = []
+        self.is_fitting = False
         self.corr_html = ""
         self.corr_stability_html = ""
 
@@ -145,8 +151,28 @@ class PlotState(rx.State):
     async def change_column(self, column: str):
         from .auth_state import AuthState
         self.selected_column = column
+        self.mixture_result = {}
+        self.mixture_curves = []
         session_id = (await self.get_state(AuthState)).user_id
         self._load_distribution(session_id, self.current_node_id, column)
+
+    @rx.event
+    async def fit_distribution(self):
+        from .auth_state import AuthState
+        from . import pipeline_hooks
+        self.is_fitting = True
+        yield
+        session_id = (await self.get_state(AuthState)).user_id
+        result = pipeline_hooks.fit_column_distribution(
+            session_id, self.current_node_id, self.selected_column
+        )
+        if result:
+            self.mixture_result = result.get("mixture", {})
+            self.mixture_curves = result.get("curves", [])
+        else:
+            self.mixture_result = {}
+            self.mixture_curves = []
+        self.is_fitting = False
 
     # ------------------------------------------------------------------
     # Internal helpers (not event handlers)

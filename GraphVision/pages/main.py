@@ -5,6 +5,7 @@ from ..components import (
     control_panel,
     top_menu,
     schema_panel,
+    logger_panel,
 )
 from ..models import GraphState as State
 from ..models.busy_state import BusyState
@@ -17,17 +18,25 @@ def main_page() -> rx.Component:
         rx.flex(
             rx.box(
                 control_panel(),
-                width="30%",
+                width="25%",
+                height="100%",
+                overflow_y="auto",
             ),
-            rx.spacer(),
+            rx.box(
+                logger_panel(),
+                width="20%",
+                height="100%",
+            ),
             rx.box(
                 plot_layout(),
-                width="70%",
+                width="55%",
+                height="100%",
             ),
             width="100%",
             flex="1",
-            spacing="1",
+            spacing="0",
             bg="white",
+            overflow="hidden",
         ),
         schema_panel(),
         rx.cond(

@@ -6,6 +6,7 @@ import reflex as rx
 
 from ..utils import generate_random_string
 from collections import defaultdict
+from .logger_state import LoggerState
 
 untitled_name = "Untitled Graph"
 
@@ -157,6 +158,7 @@ class GraphState(rx.State):
             }),
             filename=f"{name}.json"
         )
+        yield LoggerState.add_log(f"Graph saved as '{name}.json'", "success")
 
     # ------------------------------------------------------------------
     # Upload handling
@@ -190,6 +192,7 @@ class GraphState(rx.State):
                 ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
                 if ext == "json":
                     self._load_json_graph(path, file.name)
+                    yield LoggerState.add_log(f"Graph loaded from '{file.name}'", "success")
 
                 elif ext in ("csv", "parquet"):
                     yield BusyState.show("Processing dataset...")
@@ -212,6 +215,9 @@ class GraphState(rx.State):
                         self.nodes = pipeline_hooks.sync_statuses(
                             session_id, self.nodes
                         )
+                        yield LoggerState.add_log(f"Dataset '{file.name}' attached", "success")
+                    else:
+                        yield LoggerState.add_log(f"Failed to attach dataset '{file.name}'", "error")
         finally:
             yield BusyState.hide()
 
@@ -230,6 +236,7 @@ class GraphState(rx.State):
             self._dataset_path = str(path)
             self._dataset_ext = ext
             self.uploaded_dataset_file = file.name
+            yield LoggerState.add_log(f"Dataset '{file.name}' staged", "info")
 
     @rx.event
     async def handle_schema_upload(self, files: list[rx.UploadFile]):
@@ -274,21 +281,26 @@ class GraphState(rx.State):
     def create_root(self):
         new_node = self.create_default_node()
         self.nodes.append(new_node)
-        return self._select_node(new_node["id"])
+        yield self._select_node(new_node["id"])
+        yield LoggerState.add_log(f"Root node '{new_node['data']['label']}' added", "info")
 
     @rx.event
     def delete_node(self, node_id: str):
+        node = next((n for n in self.nodes if n["id"] == node_id), None)
+        label = node["data"]["label"] if node else node_id
         self.nodes = [node for node in self.nodes if node["id"] != node_id]
         self.edges = [
             edge for edge in self.edges
             if edge["source"] != node_id and edge["target"] != node_id
         ]
-        return self._select_node("")
+        yield self._select_node("")
+        yield LoggerState.add_log(f"Node '{label}' deleted", "warning")
 
     @rx.event
     def clear_graph(self):
         self.nodes = []
         self.edges = []
+        yield LoggerState.add_log("Graph cleared", "warning")
 
     @rx.event
     async def create_new_graph(self):
@@ -315,6 +327,7 @@ class GraphState(rx.State):
         finally:
             yield BusyState.hide()
             yield self._select_node(root_vertex_id)
+            yield LoggerState.add_log("New empty graph created", "success")
 
     @rx.event
     async def create_graph_with_data(self):
@@ -364,6 +377,7 @@ class GraphState(rx.State):
             yield DialogState.hide()
             yield BusyState.hide()
             yield self._select_node(root_vertex_id)
+            yield LoggerState.add_log(f"Graph created with dataset '{self.title}'", "success")
 
     @rx.event
     def on_connect(self, new_edge):
@@ -372,6 +386,9 @@ class GraphState(rx.State):
                 del self.edges[i]
                 break
         self.add_edge(new_edge["source"], new_edge["target"])
+        src = next((n["data"]["label"] for n in self.nodes if n["id"] == new_edge["source"]), new_edge["source"])
+        tgt = next((n["data"]["label"] for n in self.nodes if n["id"] == new_edge["target"]), new_edge["target"])
+        yield LoggerState.add_log(f"Edge connected: '{src}' → '{tgt}'", "info")
 
     @rx.event
     def on_nodes_change(self, node_changes: List[Dict[str, Any]]):
@@ -413,6 +430,7 @@ class GraphState(rx.State):
         if result is not None:
             self.nodes, self.edges = result
             self.data_loaded = True
+            yield LoggerState.add_log(f"Session restored — project '{self.project_name}'", "info")
 
     @rx.event
     async def sync_from_pipeline(self):
@@ -448,10 +466,13 @@ class GraphState(rx.State):
             updated_node = next((n for n in self.nodes if n["id"] == node_id), None)
             yield NodeState.set_node(updated_node)
             pipeline_hooks.persist_pipeline(session_id)
+            node_label = next((n["data"]["label"] for n in self.nodes if n["id"] == node_id), node_id)
             if error is None:
                 yield rx.toast.success("Applied!")
+                yield LoggerState.add_log(f"Node '{node_label}' applied successfully", "success")
             else:
                 yield rx.toast.error(error)
+                yield LoggerState.add_log(f"Node '{node_label}' failed: {error}", "error")
         finally:
             yield BusyState.hide()
 
@@ -489,9 +510,11 @@ class GraphState(rx.State):
                     if e["source"] != new_node["id"] and e["target"] != new_node["id"]
                 ]
                 yield rx.toast.error("Failed to add transformer — no dataset loaded?")
+                yield LoggerState.add_log(f"Failed to add '{transformation_class}' — no dataset loaded", "error")
                 return
 
             pipeline_hooks.persist_pipeline(session_id)
+            yield LoggerState.add_log(f"Transformer '{transformation_class}' added", "info")
 
         finally:
             yield BusyState.hide()
@@ -523,6 +546,7 @@ class GraphState(rx.State):
                 self.edges = []
                 self.data_loaded = False
                 self.title = ""
+            yield LoggerState.add_log(f"Switched to project '{name}'", "info")
         finally:
             yield BusyState.hide()
 
@@ -544,6 +568,7 @@ class GraphState(rx.State):
         self.selected_node_id = ""
         self.selected_edge_id = ""
         self._next_vertex_number = 1
+        yield LoggerState.add_log(f"New project '{name}' created", "success")
 
     # ------------------------------------------------------------------
     # Pipeline serialisation
@@ -568,5 +593,6 @@ class GraphState(rx.State):
             if result is not None:
                 self.nodes, self.edges = result
                 self.data_loaded = True
+                yield LoggerState.add_log(f"Pipeline loaded from '{path}'", "success")
         finally:
             yield BusyState.hide()

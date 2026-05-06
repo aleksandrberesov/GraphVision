@@ -6,6 +6,7 @@ from .node import NodeState
 from .config_state import ConfigState
 from .plot_state import PlotState
 from .schema_state import SchemaState
+from .logger_state import LoggerState
 
 __all__ = [
     "AuthState",
@@ -16,4 +17,5 @@ __all__ = [
     "ConfigState",
     "PlotState",
     "SchemaState",
+    "LoggerState",
 ]

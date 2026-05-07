@@ -18,18 +18,13 @@ def main_page() -> rx.Component:
         rx.flex(
             rx.box(
                 control_panel(),
-                width="25%",
+                width="30%",
                 height="100%",
                 overflow_y="auto",
             ),
             rx.box(
-                logger_panel(),
-                width="20%",
-                height="100%",
-            ),
-            rx.box(
                 plot_layout(),
-                width="55%",
+                width="70%",
                 height="100%",
             ),
             width="100%",
@@ -39,6 +34,7 @@ def main_page() -> rx.Component:
             overflow="hidden",
         ),
         schema_panel(),
+        logger_panel(),
         rx.cond(
             BusyState.is_busy,
             rx.box(

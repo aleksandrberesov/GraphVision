@@ -461,6 +461,9 @@ class GraphState(rx.State):
             session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
             error = pipeline_hooks.manifest_vertex(session_id, node_id)
+            for entry in pipeline_hooks.pending_logs:
+                yield LoggerState.add_log(entry["message"], entry["level"])
+            pipeline_hooks.pending_logs = []
             self.nodes = pipeline_hooks.sync_statuses(session_id, self.nodes)
             from .node import NodeState
             updated_node = next((n for n in self.nodes if n["id"] == node_id), None)
@@ -503,6 +506,9 @@ class GraphState(rx.State):
                 config,
                 new_node["id"],
             )
+            for entry in pipeline_hooks.pending_logs:
+                yield LoggerState.add_log(entry["message"], entry["level"])
+            pipeline_hooks.pending_logs = []
             if registered_id is None:
                 self.nodes = [n for n in self.nodes if n["id"] != new_node["id"]]
                 self.edges = [

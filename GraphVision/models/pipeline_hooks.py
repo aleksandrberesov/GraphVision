@@ -14,6 +14,10 @@ GraphVision itself never imports axiolyze or bridge_layer.
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+# Log entries captured by the bridge during the most recent hook call.
+# Each entry is {"message": str, "level": str}.  GraphVision drains this list
+# after a hook returns and forwards the entries to LoggerState.
+pending_logs: List[Dict[str, str]] = []
 
 # ---------------------------------------------------------------------------
 # Registry access

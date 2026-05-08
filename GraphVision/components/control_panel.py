@@ -3,7 +3,9 @@ from ..models import GraphState as State
 from ..models import NodeState as Node
 from ..models.config_state import ConfigState
 from ..models.schema_state import SchemaState
+from ..models.data_preview_state import DataPreviewState
 from .config_panel import config_panel
+from .data_preview_panel import data_preview_panel
 from .filter_panel import filter_panel
 from .results_panel import results_panel
 from .upload_box import upload_box
@@ -43,12 +45,23 @@ def _vertex_properties() -> rx.Component:
                 ),
                 rx.cond(
                     Node.is_root,
-                    rx.button(
-                        "Configure schema",
-                        on_click=SchemaState.open_schema,
+                    rx.vstack(
+                        rx.button(
+                            "Configure schema",
+                            on_click=SchemaState.open_schema,
+                            width="100%",
+                            variant="soft",
+                            color_scheme="blue",
+                        ),
+                        rx.button(
+                            "Show data",
+                            on_click=DataPreviewState.open_preview,
+                            width="100%",
+                            variant="soft",
+                            color_scheme="green",
+                        ),
                         width="100%",
-                        variant="soft",
-                        color_scheme="blue",
+                        spacing="2",
                     ),
                     rx.button(
                         "Configure transformer",
@@ -58,6 +71,7 @@ def _vertex_properties() -> rx.Component:
                     ),
                 ),
                 config_panel(),
+                data_preview_panel(),
                 filter_panel(),
                 results_panel(),
                 rx.button(

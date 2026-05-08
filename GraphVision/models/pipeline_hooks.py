@@ -160,6 +160,16 @@ list_projects: Callable[[str], List[str]] = lambda _: []
 
 
 # ---------------------------------------------------------------------------
+# Data preview
+# ---------------------------------------------------------------------------
+
+# (session_id: str, vertex_id: str, n_rows: int) -> Optional[Dict[str, Any]]
+# Return a data preview for a vertex.
+# Returns {"columns": List[str], "rows": List[List[str]], "total_rows": int}
+get_data_preview: Callable[[str, str, int], Optional[Dict[str, Any]]] = lambda *_: None
+
+
+# ---------------------------------------------------------------------------
 # Schema editing
 # ---------------------------------------------------------------------------
 

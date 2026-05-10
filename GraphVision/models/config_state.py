@@ -68,8 +68,9 @@ class ConfigState(rx.State):
             self.param_schema = []
 
         from .auth_state import AuthState
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
-            (await self.get_state(AuthState)).user_id, parent_id
+            session_id, parent_id
         )
         if cols_by_type:
             cols: List[str] = []
@@ -101,8 +102,9 @@ class ConfigState(rx.State):
         self.vertex_id_editing = ""
 
         from .auth_state import AuthState
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
-            (await self.get_state(AuthState)).user_id, parent_id
+            session_id, parent_id
         )
         if cols_by_type:
             cols: List[str] = []
@@ -170,8 +172,9 @@ class ConfigState(rx.State):
 
         from .auth_state import AuthState
         self.available_columns = []
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
-            (await self.get_state(AuthState)).user_id, vertex_id
+            session_id, vertex_id
         )
         if cols_by_type:
             cols: List[str] = []
@@ -257,13 +260,15 @@ class ConfigState(rx.State):
                 config[name] = raw if raw else (None if required else default)
 
         from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
         self.is_open = False
 
         if self.is_edit_mode:
             from .auth_state import AuthState
             from . import pipeline_hooks
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
             pipeline_hooks.update_transformation_config(
-                (await self.get_state(AuthState)).user_id,
+                session_id,
                 self.vertex_id_editing,
                 self.selected_class,
                 config,

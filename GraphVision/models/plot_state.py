@@ -174,7 +174,9 @@ class PlotState(rx.State):
             return
 
         from . import pipeline_hooks
-        session_id = (await self.get_state(AuthState)).user_id
+        from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
 
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
             session_id, node_id
@@ -200,6 +202,7 @@ class PlotState(rx.State):
 
         self._load_correlation(session_id, node_id)
 
+        from .filter_state import FilterState
         yield FilterState.load_options(session_id, node_id)
         self.is_open = True
 
@@ -208,7 +211,9 @@ class PlotState(rx.State):
         """Re-run distribution and correlation with the current FilterState filter spec."""
         from .auth_state import AuthState
         from .filter_state import FilterState
-        session_id = (await self.get_state(AuthState)).user_id
+        from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         filter_state = await self.get_state(FilterState)
         filter_spec = filter_state.active_filter_spec
         self._load_distribution(session_id, self.current_node_id, self.selected_column, filter_spec)
@@ -221,7 +226,9 @@ class PlotState(rx.State):
         self.selected_column = column
         self.mixture_result = {}
         self.mixture_curves = []
-        session_id = (await self.get_state(AuthState)).user_id
+        from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         filter_spec = (await self.get_state(FilterState)).active_filter_spec
         self._load_distribution(session_id, self.current_node_id, column, filter_spec)
 
@@ -231,7 +238,9 @@ class PlotState(rx.State):
         from . import pipeline_hooks
         self.is_fitting = True
         yield
-        session_id = (await self.get_state(AuthState)).user_id
+        from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         result = pipeline_hooks.fit_column_distribution(
             session_id, self.current_node_id, self.selected_column
         )
@@ -254,7 +263,9 @@ class PlotState(rx.State):
         from .filter_state import FilterState
         self.fi_is_computing = True
         yield
-        session_id = (await self.get_state(AuthState)).user_id
+        from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         filter_spec = (await self.get_state(FilterState)).active_filter_spec
         result = pipeline_hooks.compute_vertex_feature_importance(
             session_id, self.current_node_id, row_filter=filter_spec or None
@@ -311,7 +322,9 @@ class PlotState(rx.State):
         self.mv_is_loading = True
         self.mv_warning = ""
         yield
-        session_id = (await self.get_state(AuthState)).user_id
+        from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         filter_spec = (await self.get_state(FilterState)).active_filter_spec
         result = pipeline_hooks.compute_vertex_grouped_stats(
             session_id, self.current_node_id,

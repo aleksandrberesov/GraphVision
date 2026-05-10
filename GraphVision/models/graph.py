@@ -499,6 +499,7 @@ class GraphState(rx.State):
 
             session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
+            print(f"[UI] add_transformation_node: session_id={session_id}, parent_id={parent_id}, class={transformation_class}")
             registered_id = pipeline_hooks.add_transformation(
                 session_id,
                 parent_id,
@@ -515,8 +516,15 @@ class GraphState(rx.State):
                     e for e in self.edges
                     if e["source"] != new_node["id"] and e["target"] != new_node["id"]
                 ]
-                yield rx.toast.error("Failed to add transformer — no dataset loaded?")
-                yield LoggerState.add_log(f"Failed to add '{transformation_class}' — no dataset loaded", "error")
+                
+                # Check if pipeline exists to give a better error
+                from . import pipeline_hooks
+                if not pipeline_hooks.get_pipeline(session_id):
+                    yield rx.toast.error("Failed to add transformer — no dataset loaded?")
+                    yield LoggerState.add_log(f"Failed to add '{transformation_class}' — no dataset loaded", "error")
+                else:
+                    yield rx.toast.error(f"Failed to add '{transformation_class}' — internal error. Check logs.")
+                    yield LoggerState.add_log(f"Failed to add '{transformation_class}' — hook returned None", "error")
                 return
 
             pipeline_hooks.persist_pipeline(session_id)

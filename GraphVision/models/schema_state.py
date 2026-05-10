@@ -14,8 +14,10 @@ class SchemaState(rx.State):
         from .auth_state import AuthState
         from . import pipeline_hooks
         from .busy_state import BusyState
+        from .graph import GraphState
 
-        session_id = (await self.get_state(AuthState)).user_id
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         if not pipeline_hooks.get_pipeline(session_id):
             return
         yield BusyState.show("Loading schema...")
@@ -41,8 +43,10 @@ class SchemaState(rx.State):
         from .auth_state import AuthState
         from . import pipeline_hooks
         from .busy_state import BusyState
+        from .graph import GraphState
 
-        session_id = (await self.get_state(AuthState)).user_id
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
         yield BusyState.show("Saving schema...")
         schema_dict = {r["name"]: r["type"] for r in self.rows}
         pipeline_hooks.update_schema(session_id, schema_dict)

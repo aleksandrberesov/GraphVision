@@ -532,7 +532,9 @@ class GraphState(rx.State):
 
         finally:
             yield BusyState.hide()
-            yield self._select_node(new_node["id"])
+            # Only select the new node if it still exists (wasn't rolled back)
+            if any(n["id"] == new_node["id"] for n in self.nodes):
+                yield self._select_node(new_node["id"])
 
     # ------------------------------------------------------------------
     # Multi-project support

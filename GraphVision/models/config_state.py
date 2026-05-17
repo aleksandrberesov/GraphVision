@@ -20,6 +20,17 @@ class ConfigState(rx.State):
     def available_columns_hint(self) -> str:
         return ", ".join(self.available_columns)
 
+    @rx.var
+    def selected_columns_per_param(self) -> Dict[str, List[str]]:
+        """For each list param, the currently selected column names parsed from value."""
+        result: Dict[str, List[str]] = {}
+        for p in self.param_schema:
+            if p.get("is_list"):
+                name = p.get("name", "")
+                val = p.get("value", "")
+                result[name] = [c.strip() for c in val.split(",") if c.strip()]
+        return result
+
     @rx.event
     async def load_transformers(self):
         """Eagerly populate transformer_names without opening the dialog."""
@@ -228,6 +239,22 @@ class ConfigState(rx.State):
             {**p, "value": value} if p["name"] == name else p
             for p in self.param_schema
         ]
+
+    @rx.event
+    def toggle_column(self, param_name: str, col: str):
+        """Add or remove col from the comma-separated value of a list param."""
+        new_schema = []
+        for p in self.param_schema:
+            if p["name"] == param_name and p.get("is_list"):
+                current = [c.strip() for c in p.get("value", "").split(",") if c.strip()]
+                if col in current:
+                    current.remove(col)
+                else:
+                    current.append(col)
+                new_schema.append({**p, "value": ", ".join(current)})
+            else:
+                new_schema.append(p)
+        self.param_schema = new_schema
 
     @rx.event
     async def submit(self):

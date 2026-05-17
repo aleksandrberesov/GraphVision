@@ -5,6 +5,56 @@ import reflex as rx
 from ..models.config_state import ConfigState
 
 
+def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
+    """Render clickable column badges for a single list param.
+
+    Uses a closure so both param_name_var and param_value_var (Vars from the
+    outer rx.foreach) are captured and compiled into the inner foreach correctly.
+    """
+    def _badge(col: str) -> rx.Component:
+        is_selected = param_value_var.to(str).contains(col)
+        return rx.badge(
+            col,
+            on_click=ConfigState.toggle_column(param_name_var, col),
+            cursor="pointer",
+            color_scheme=rx.cond(is_selected, "green", "gray"), # type: ignore[arg-type]
+            variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+            font_size="xs",
+        )
+
+    return rx.cond(
+        ConfigState.available_columns,
+        rx.vstack(
+            rx.text("Select columns:", font_size="xs", color="gray"),
+            rx.flex(
+                rx.foreach(ConfigState.available_columns, _badge),
+                flex_wrap="wrap",
+                gap="1",
+                width="100%",
+            ),
+            spacing="1",
+            width="100%",
+        ),
+        rx.fragment(),
+    )
+
+
+def _list_param_input(param: Dict[str, Any]) -> rx.Component:
+    """Column picker: clickable badges from available_columns + a manual text input."""
+    return rx.vstack(
+        _make_column_badges(param["name"], param["value"]),
+        rx.input(
+            placeholder="col1, col2, ...",
+            value=param["value"],
+            on_change=ConfigState.update_param(param["name"]),
+            width="100%",
+            color="black",
+        ),
+        spacing="1",
+        width="100%",
+    )
+
+
 def _param_input(param: Dict[str, Any]) -> rx.Component:
     return rx.vstack(
         rx.hstack(
@@ -18,27 +68,7 @@ def _param_input(param: Dict[str, Any]) -> rx.Component:
         ),
         rx.cond(
             param["is_list"],
-            rx.vstack(
-                rx.cond(
-                    ConfigState.available_columns,
-                    rx.text(
-                        "Available: " + ConfigState.available_columns_hint,
-                        font_size="xs",
-                        color="gray",
-                        font_style="italic",
-                    ),
-                    rx.fragment(),
-                ),
-                rx.input(
-                    placeholder="col1, col2, ...",
-                    value=param["value"],
-                    on_change=ConfigState.update_param(param["name"]),
-                    width="100%",
-                    color="black",
-                ),
-                spacing="1",
-                width="100%",
-            ),
+            _list_param_input(param),
             rx.cond(
                 param["is_bool"],
                 rx.select(

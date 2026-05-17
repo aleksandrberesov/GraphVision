@@ -1,0 +1,5 @@
+/* placeholder color for modal inputs — covers both direct <input> and Radix wrapper cases */
+.modal-input::placeholder,
+.modal-input input::placeholder {
+    color: #0066cc !important;
+}

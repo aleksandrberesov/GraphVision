@@ -25,7 +25,7 @@ def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
     return rx.cond(
         ConfigState.available_columns,
         rx.vstack(
-            rx.text("Select columns:", font_size="xs", color="gray"),
+            rx.text("Select columns:", font_size="xs", color="#cccccc"),
             rx.flex(
                 rx.foreach(ConfigState.available_columns, _badge),
                 flex_wrap="wrap",
@@ -48,7 +48,9 @@ def _list_param_input(param: Dict[str, Any]) -> rx.Component:
             value=param["value"],
             on_change=ConfigState.update_param(param["name"]),
             width="100%",
-            color="black",
+            color="#111111",
+            background_color="white",
+            class_name="modal-input",
         ),
         spacing="1",
         width="100%",
@@ -58,11 +60,11 @@ def _list_param_input(param: Dict[str, Any]) -> rx.Component:
 def _param_input(param: Dict[str, Any]) -> rx.Component:
     return rx.vstack(
         rx.hstack(
-            rx.text(param["name"], font_size="xs", font_weight="bold", color="black"),
+            rx.text(param["name"], font_size="xs", font_weight="bold", color="white"),
             rx.cond(
                 param["required"],
-                rx.text("*", color="red", font_size="xs"),
-                rx.text("optional", color="gray", font_size="xs"),
+                rx.text("*", color="#ff6b6b", font_size="xs"),
+                rx.text("optional", color="#aaaaaa", font_size="xs"),
             ),
             spacing="1",
         ),
@@ -76,13 +78,17 @@ def _param_input(param: Dict[str, Any]) -> rx.Component:
                     value=param["value"],
                     on_change=ConfigState.update_param(param["name"]),
                     width="100%",
+                    color="#111111",
+                    background_color="white",
                 ),
                 rx.input(
                     value=param["value"],
                     placeholder=rx.cond(param["required"], "required", "optional"),
                     on_change=ConfigState.update_param(param["name"]),
                     width="100%",
-                    color="black",
+                    color="#111111",
+                    background_color="white",
+                    class_name="modal-input",
                 ),
             ),
         ),
@@ -92,9 +98,19 @@ def _param_input(param: Dict[str, Any]) -> rx.Component:
     )
 
 
+_MODAL_INPUT_PLACEHOLDER_CSS = """
+.modal-input::placeholder,
+.modal-input input::placeholder {
+    color: #0066cc !important;
+    opacity: 1 !important;
+}
+"""
+
+
 def config_panel() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
+            rx.el.style(_MODAL_INPUT_PLACEHOLDER_CSS),
             rx.dialog.title("Configure transformer"),
             rx.vstack(
                 rx.select(
@@ -103,6 +119,8 @@ def config_panel() -> rx.Component:
                     value=ConfigState.selected_class,
                     on_change=ConfigState.select_class,
                     width="100%",
+                    color="#111111",
+                    background_color="white",
                 ),
                 rx.cond(
                     ConfigState.param_schema,

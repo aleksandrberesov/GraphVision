@@ -83,9 +83,9 @@ def top_menu() -> rx.Component:
                 rx.button("File", variant="solid", size="3", color_scheme="blue")
             ),
             rx.menu.content(
-                rx.menu.item("New graph", on_click=DialogState.open_create),
+                rx.menu.item("Load data (CSV / Parquet)…", on_click=DialogState.open_create),
                 rx.menu.separator(),
-                rx.menu.item("Upload graph", on_click=DialogState.open_load),
+                rx.menu.item("Load saved graph (JSON)…", on_click=DialogState.open_load),
                 rx.menu.separator(),
                 rx.menu.item("Save graph", on_click=DialogState.open_save),
                 rx.menu.separator(),

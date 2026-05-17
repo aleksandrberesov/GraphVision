@@ -1,6 +1,5 @@
 import reflex as rx
-from ..models import GraphState as State
-from ..models import NodeState as Node
+from ..models import GraphState as State, NodeState as Node, DialogState
 from ..models.config_state import ConfigState
 from ..models.schema_state import SchemaState
 from ..models.data_preview_state import DataPreviewState
@@ -126,11 +125,23 @@ def control_panel() -> rx.Component:
     return rx.vstack(
         rx.cond(
             ~State.data_loaded,
-            rx.callout(
-                "No dataset loaded. Use File → New graph to get started.",
-                icon="triangle_alert",
-                color_scheme="orange",
+            rx.vstack(
+                rx.callout(
+                    "No dataset loaded yet.",
+                    icon="triangle_alert",
+                    color_scheme="orange",
+                    width="100%",
+                ),
+                rx.button(
+                    rx.icon(tag="upload", size=14),
+                    "Load data (CSV / Parquet)…",
+                    on_click=DialogState.open_create,
+                    width="100%",
+                    color_scheme="blue",
+                    size="2",
+                ),
                 width="100%",
+                spacing="2",
             ),
             rx.fragment(),
         ),

@@ -575,7 +575,8 @@ class GraphState(rx.State):
         user_id = (await self.get_state(AuthState)).user_id
         if not user_id or not name:
             return
-        pipeline_hooks.persist_pipeline(f"{user_id}::{self.project_name}")
+        saved_name = self.project_name
+        pipeline_hooks.persist_pipeline(f"{user_id}::{saved_name}")
         self.project_name = name
         self.nodes = []
         self.edges = []
@@ -584,7 +585,8 @@ class GraphState(rx.State):
         self.selected_node_id = ""
         self.selected_edge_id = ""
         self._next_vertex_number = 1
-        yield LoggerState.add_log(f"New project '{name}' created", "success")
+        yield rx.toast.success(f"Project '{saved_name}' saved. Starting '{name}'…", duration=4000)
+        yield LoggerState.add_log(f"Project '{saved_name}' saved. New project '{name}' created", "success")
 
     # ------------------------------------------------------------------
     # Pipeline serialisation

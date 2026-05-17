@@ -26,7 +26,7 @@ def _project_dialogs() -> rx.Component:
                         ),
                     ),
                     rx.cond(
-                        DialogState.project_list.length() == 0,
+                        DialogState.project_list == [],
                         rx.text("No saved projects found.", color="gray"),
                     ),
                     spacing="2",
@@ -40,7 +40,16 @@ def _project_dialogs() -> rx.Component:
             rx.dialog.content(
                 rx.dialog.title("New project"),
                 rx.vstack(
-                    rx.text("Project name:"),
+                    rx.callout.root(
+                        rx.callout.text(
+                            "Current project «"
+                            + GraphState.project_name
+                            + "» will be saved automatically."
+                        ),
+                        color_scheme="blue",
+                        size="1",
+                    ),
+                    rx.text("New project name:"),
                     rx.input(
                         placeholder="my-project",
                         value=DialogState.new_project_name,

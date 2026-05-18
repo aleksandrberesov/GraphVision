@@ -184,8 +184,12 @@ class ConfigState(rx.State):
         from .auth_state import AuthState
         self.available_columns = []
         session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
+        parent_id: Optional[str] = next(
+            (e["source"] for e in graph_state.edges if e["target"] == vertex_id),
+            None,
+        )
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
-            session_id, vertex_id
+            session_id, parent_id or vertex_id
         )
         if cols_by_type:
             cols: List[str] = []

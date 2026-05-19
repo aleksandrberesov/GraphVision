@@ -4,20 +4,20 @@ from ..models.config_state import ConfigState
 from ..models import GraphState
 
 
-def _palette_button(class_name: str) -> rx.Component:
+def _palette_button(entry: dict) -> rx.Component:
     return rx.tooltip(
         rx.button(
-            class_name[:3],
-            on_click=ConfigState.open_dialog_with_class(class_name),
+            entry["label"],
+            on_click=ConfigState.open_dialog_with_class(entry["name"]),
             disabled=GraphState.selected_node_id == "",
-            width="46px",
+            width="52px",
             height="30px",
             padding="0",
             font_size="10px",
             variant="outline",
             color_scheme="blue",
         ),
-        content=class_name,
+        content=entry["name"],
     )
 
 
@@ -31,7 +31,7 @@ def transformer_palette() -> rx.Component:
             margin_bottom="2",
         ),
         rx.flex(
-            rx.foreach(ConfigState.transformer_names, _palette_button),
+            rx.foreach(ConfigState.transformer_entries, _palette_button),
             flex_wrap="wrap",
             gap="2",
             width="100%",

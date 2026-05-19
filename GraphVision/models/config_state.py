@@ -1,8 +1,22 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 
 import reflex as rx
+
+
+def _short_label(class_name: str) -> str:
+    name = re.sub(r"^GLM", "", class_name)
+    name = re.sub(r"(Transformation|Transliterator)$", "", name)
+    parts = re.findall(r"[A-Z][a-z0-9]*", name)
+    if not parts:
+        return name[:4]
+    if len(parts) == 1:
+        return parts[0][:4]
+    if len(parts) >= 3:
+        return "".join(p[0] for p in parts)[:5]
+    return parts[0][:3] + parts[1][0]
 
 
 class ConfigState(rx.State):
@@ -15,6 +29,10 @@ class ConfigState(rx.State):
     param_schema: List[Dict[str, Any]] = []
     available_columns: List[str] = []
     transformer_names: List[str] = []
+
+    @rx.var
+    def transformer_entries(self) -> List[Dict[str, str]]:
+        return [{"name": n, "label": _short_label(n)} for n in self.transformer_names]
 
     @rx.var
     def available_columns_hint(self) -> str:

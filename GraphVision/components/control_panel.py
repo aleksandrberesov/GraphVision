@@ -145,18 +145,7 @@ def control_panel() -> rx.Component:
             ),
             rx.fragment(),
         ),
-        # ── Top: graph identity + graph-level actions ──
-        rx.vstack(
-            rx.input(
-                value=State.title,
-                placeholder="Graph name",
-                on_change=State.set_name,
-                width="100%",
-            ),
-            upload_box(),
-            width="100%",
-            spacing="2",
-        ),
+        upload_box(),
         rx.divider(orientation="horizontal", size="4", color_scheme="blue"),
         # ── Middle: transformer palette (always visible) ──
         transformer_palette(),

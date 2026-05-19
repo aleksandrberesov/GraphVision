@@ -38,6 +38,34 @@ def _project_dialogs() -> rx.Component:
         ),
         rx.dialog.root(
             rx.dialog.content(
+                rx.dialog.title("Rename graph"),
+                rx.vstack(
+                    rx.text("New graph name:"),
+                    rx.input(
+                        placeholder="Graph name",
+                        value=DialogState.rename_value,
+                        on_change=DialogState.set_rename_value,
+                    ),
+                    rx.hstack(
+                        rx.dialog.close(rx.button("Cancel", variant="soft")),
+                        rx.dialog.close(
+                            rx.button(
+                                "Rename",
+                                on_click=GraphState.set_name(DialogState.rename_value),
+                                disabled=DialogState.rename_value == "",
+                            )
+                        ),
+                        spacing="3",
+                        justify="end",
+                    ),
+                    spacing="3",
+                ),
+            ),
+            open=DialogState.rename_open,
+            on_open_change=DialogState.set_rename_open,
+        ),
+        rx.dialog.root(
+            rx.dialog.content(
                 rx.dialog.title("New project"),
                 rx.vstack(
                     rx.callout.root(
@@ -99,6 +127,7 @@ def top_menu() -> rx.Component:
                 rx.menu.item("Load saved graph (JSON)…", on_click=DialogState.open_load),
                 rx.menu.separator(),
                 rx.menu.item("Save graph", on_click=DialogState.open_save),
+                rx.menu.item("Rename graph…", on_click=DialogState.open_rename),
                 rx.menu.separator(),
                 rx.menu.item("Edit schema", on_click=SchemaState.open_schema),
                 rx.menu.separator(),

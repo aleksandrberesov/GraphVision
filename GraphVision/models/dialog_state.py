@@ -11,6 +11,8 @@ class DialogState(rx.State):
     open_project_open: bool = False
     new_project_open: bool = False
     new_project_name: str = ""
+    rename_open: bool = False
+    rename_value: str = ""
     project_list: List[str] = []
 
     @rx.event
@@ -82,6 +84,21 @@ class DialogState(rx.State):
         self.new_project_name = value
 
     @rx.event
+    async def open_rename(self):
+        from .graph import GraphState, untitled_name
+        graph_state = await self.get_state(GraphState)
+        self.rename_value = graph_state.title.strip() or untitled_name
+        self.rename_open = True
+
+    @rx.event
+    def set_rename_open(self, value: bool):
+        self.rename_open = value
+
+    @rx.event
+    def set_rename_value(self, value: str):
+        self.rename_value = value
+
+    @rx.event
     async def handle_project_select_open(self, is_open: bool):
         if is_open:
             from .auth_state import AuthState
@@ -96,3 +113,4 @@ class DialogState(rx.State):
         self.save_open = False
         self.open_project_open = False
         self.new_project_open = False
+        self.rename_open = False

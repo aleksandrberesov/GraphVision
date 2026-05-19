@@ -19,6 +19,23 @@ def _short_label(class_name: str) -> str:
     return parts[0][:3] + parts[1][0]
 
 
+_ICONS: Dict[str, str] = {
+    "GLMBinningTransformation": "bar-chart-2",
+    "GLMTargetTransformation": "crosshair",
+    "GLMCyclicTransformation": "rotate-cw",
+    "GLMDateTransformation": "calendar",
+    "GLMDateDifferenceTransformation": "calendar-minus",
+    "GLMCategoryMappingTransformation": "tags",
+    "GLMFeaturePairTransformation": "git-merge",
+    "GLMColumnRemoverTransformation": "trash-2",
+    "GLMSmartDataFilterTransformation": "filter",
+    "GLMColumnNameTransliterator": "type",
+    "GLMMathematicalTransformation": "sigma",
+    "GLMNumericToCategoricalTransformation": "layers",
+    "GLMImputationTransformation": "wand",
+}
+
+
 class ConfigState(rx.State):
     is_open: bool = False
     is_edit_mode: bool = False
@@ -32,7 +49,10 @@ class ConfigState(rx.State):
 
     @rx.var
     def transformer_entries(self) -> List[Dict[str, str]]:
-        return [{"name": n, "label": _short_label(n)} for n in self.transformer_names]
+        return [
+            {"name": n, "label": _short_label(n), "icon": _ICONS.get(n, "box")}
+            for n in self.transformer_names
+        ]
 
     @rx.var
     def available_columns_hint(self) -> str:

@@ -7,13 +7,12 @@ from ..models import GraphState
 def _palette_button(entry: dict) -> rx.Component:
     return rx.tooltip(
         rx.button(
-            entry["label"],
+            rx.icon(entry["icon"], size=15),
             on_click=ConfigState.open_dialog_with_class(entry["name"]),
             disabled=GraphState.selected_node_id == "",
-            width="52px",
-            height="30px",
+            width="34px",
+            height="34px",
             padding="0",
-            font_size="10px",
             variant="outline",
             color_scheme="blue",
         ),

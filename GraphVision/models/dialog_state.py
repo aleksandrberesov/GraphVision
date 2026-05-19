@@ -82,6 +82,14 @@ class DialogState(rx.State):
         self.new_project_name = value
 
     @rx.event
+    async def handle_project_select_open(self, is_open: bool):
+        if is_open:
+            from .auth_state import AuthState
+            from . import pipeline_hooks
+            user_id = (await self.get_state(AuthState)).user_id
+            self.project_list = pipeline_hooks.list_projects(user_id)
+
+    @rx.event
     def hide(self):
         self.create_open = False
         self.load_open = False

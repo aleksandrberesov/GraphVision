@@ -78,6 +78,17 @@ def _project_dialogs() -> rx.Component:
 
 def top_menu() -> rx.Component:
     return rx.hstack(
+        rx.select(
+            DialogState.project_list,
+            value=GraphState.project_name,
+            on_change=GraphState.switch_project,
+            on_open_change=DialogState.handle_project_select_open,
+            placeholder="Project",
+            size="3",
+            color_scheme="indigo",
+            variant="classic",
+        ),
+        rx.separator(orientation="vertical", size="2"),
         rx.menu.root(
             rx.menu.trigger(
                 rx.button("File", variant="solid", size="3", color_scheme="blue")

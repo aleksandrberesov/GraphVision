@@ -425,12 +425,14 @@ class GraphState(rx.State):
         user_id = (await self.get_state(AuthState)).user_id
         if not user_id:
             return
+        from .dialog_state import DialogState
         session_id = f"{user_id}::{self.project_name}"
         result = pipeline_hooks.restore_pipeline(session_id)
         if result is not None:
             self.nodes, self.edges = result
             self.data_loaded = True
             yield LoggerState.add_log(f"Session restored — project '{self.project_name}'", "info")
+        yield DialogState.refresh_project_list
 
     @rx.event
     async def sync_from_pipeline(self):

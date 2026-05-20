@@ -99,6 +99,14 @@ class DialogState(rx.State):
         self.rename_value = value
 
     @rx.event
+    async def refresh_project_list(self):
+        from .auth_state import AuthState
+        from . import pipeline_hooks
+        user_id = (await self.get_state(AuthState)).user_id
+        if user_id:
+            self.project_list = pipeline_hooks.list_projects(user_id)
+
+    @rx.event
     async def handle_project_select_open(self, is_open: bool):
         if is_open:
             from .auth_state import AuthState

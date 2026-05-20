@@ -1,3 +1,7 @@
+import importlib.metadata
+import subprocess
+from pathlib import Path
+
 import reflex as rx
 
 from ..models import DialogState
@@ -5,6 +9,22 @@ from ..models.auth_state import AuthState
 from ..models.config_state import ConfigState
 from ..models.graph import GraphState
 from ..models.schema_state import SchemaState
+
+try:
+    _APP_VERSION = importlib.metadata.version("reflex_ui")
+except importlib.metadata.PackageNotFoundError:
+    _APP_VERSION = "dev"
+
+try:
+    _REPO_ROOT = Path(__file__).parent.parent.parent
+    _BUILD = subprocess.check_output(
+        ["git", "rev-list", "--count", "HEAD"],
+        cwd=_REPO_ROOT,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    ).strip()
+except Exception:
+    _BUILD = "0"
 
 
 def _project_dialogs() -> rx.Component:
@@ -171,6 +191,13 @@ def top_menu() -> rx.Component:
             rx.menu.content(rx.menu.item("(coming soon)", disabled=True)),
         ),
         _project_dialogs(),
+        rx.badge(
+            f"v{_APP_VERSION}.{_BUILD}",
+            variant="solid",
+            color_scheme="indigo",
+            size="2",
+            margin_left="auto",
+        ),
         bg="white",
         border_bottom="1px solid #e5e7eb",
         padding_x="4",

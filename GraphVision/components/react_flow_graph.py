@@ -1,5 +1,5 @@
 import reflex as rx
-from .react_flow import react_flow, background, controls, event_bridge
+from .react_flow import react_flow, background, controls
 from ..models import GraphState as State
 
 def graphArea() -> rx.Component:
@@ -7,7 +7,6 @@ def graphArea() -> rx.Component:
         react_flow(
             background(),
             controls(),
-            event_bridge(),
             nodes_draggable=True,
             nodes_focusable=True,
             nodes_connectable=True,

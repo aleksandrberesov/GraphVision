@@ -13,6 +13,7 @@ from .transformer_palette import transformer_palette
 
 def _vertex_properties() -> rx.Component:
     return rx.vstack(
+        config_panel(),
         rx.text(
             "Selected vertex",
             font_size="xs",
@@ -62,14 +63,24 @@ def _vertex_properties() -> rx.Component:
                         width="100%",
                         spacing="2",
                     ),
-                    rx.button(
-                        "Configure transformer",
-                        on_click=ConfigState.open_edit_dialog,
+                    rx.vstack(
+                        rx.button(
+                            "Configure transformer",
+                            on_click=ConfigState.open_edit_dialog,
+                            width="100%",
+                            variant="soft",
+                        ),
+                        rx.button(
+                            "Show data",
+                            on_click=DataPreviewState.open_preview,
+                            width="100%",
+                            variant="soft",
+                            color_scheme="green",
+                        ),
                         width="100%",
-                        variant="soft",
+                        spacing="2",
                     ),
                 ),
-                config_panel(),
                 data_preview_panel(),
                 filter_panel(),
                 results_panel(),

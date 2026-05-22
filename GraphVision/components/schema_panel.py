@@ -7,7 +7,7 @@ _COLUMN_TYPES = ["numeric", "categorical", "ordered_categorical", "excluded"]
 
 def _schema_row(row: dict) -> rx.Component:
     return rx.table.row(
-        rx.table.cell(rx.text(row["name"], font_size="sm", color="black")),
+        rx.table.cell(rx.text(row["name"], font_size="sm")),
         rx.table.cell(
             rx.cond(
                 row["type"] == "service",

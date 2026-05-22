@@ -126,15 +126,26 @@ def _project_dialogs() -> rx.Component:
 
 def top_menu() -> rx.Component:
     return rx.hstack(
-        rx.select(
+        rx.cond(
             DialogState.project_list,
-            value=GraphState.project_name,
-            on_change=GraphState.switch_project,
-            on_open_change=DialogState.handle_project_select_open,
-            placeholder="Project",
-            size="3",
-            color_scheme="indigo",
-            variant="classic",
+            rx.select(
+                DialogState.project_list,
+                value=GraphState.project_name,
+                on_change=GraphState.switch_project,
+                on_open_change=DialogState.handle_project_select_open,
+                placeholder="Project",
+                size="3",
+                color_scheme="indigo",
+                variant="classic",
+            ),
+            rx.select(
+                [],
+                placeholder="No saved projects",
+                disabled=True,
+                size="3",
+                color_scheme="gray",
+                variant="classic",
+            ),
         ),
         rx.separator(orientation="vertical", size="2"),
         rx.menu.root(

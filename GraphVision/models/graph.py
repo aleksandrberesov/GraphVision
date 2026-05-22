@@ -60,7 +60,7 @@ class GraphState(rx.State):
             'draggable': True,
             'style': {
                 'width': '150px',
-                'height': '50px',
+                'height': '65px',
             },
         }
 
@@ -589,6 +589,8 @@ class GraphState(rx.State):
         self._next_vertex_number = 1
         yield rx.toast.success(f"Project '{saved_name}' saved. Starting '{name}'…", duration=4000)
         yield LoggerState.add_log(f"Project '{saved_name}' saved. New project '{name}' created", "success")
+        from .dialog_state import DialogState
+        yield DialogState.refresh_project_list
 
     # ------------------------------------------------------------------
     # Pipeline serialisation

@@ -131,6 +131,44 @@ class ConfigState(rx.State):
         self.is_open = True
 
     @rx.event
+    async def open_dialog_for_parent(self, node_id: str):
+        """Open the config dialog using node_id as the explicit parent (add mode).
+
+        Called from the node's '+' button so that selected_node_id is irrelevant —
+        the correct parent is always the node that owns the button.
+        """
+        from . import pipeline_hooks
+        from .busy_state import BusyState
+        from .graph import GraphState
+        from .auth_state import AuthState
+
+        if not self.transformer_names and not pipeline_hooks.is_transformers_cached():
+            yield BusyState.show("Loading transformers...")
+
+        self.transformer_names = pipeline_hooks.available_transformers()
+        self.selected_class = ""
+        self.param_schema = []
+        self.available_columns = []
+        self.is_edit_mode = False
+        self.vertex_id_editing = ""
+
+        graph_state = await self.get_state(GraphState)
+        yield graph_state._select_node(node_id)
+
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
+        cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
+            session_id, node_id
+        )
+        if cols_by_type:
+            cols: List[str] = []
+            for col_list in cols_by_type.values():
+                cols.extend(col_list)
+            self.available_columns = cols
+
+        yield BusyState.hide()
+        self.is_open = True
+
+    @rx.event
     async def open_dialog(self):
         """Open the config dialog with no class pre-selected (add mode)."""
         from . import pipeline_hooks

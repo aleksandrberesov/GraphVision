@@ -25,7 +25,7 @@ def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
     return rx.cond(
         ConfigState.available_columns,
         rx.vstack(
-            rx.text("Select columns:", font_size="xs", color="#cccccc"),
+            rx.text("Select columns:", font_size="xs", color="#444444"),
             rx.flex(
                 rx.foreach(ConfigState.available_columns, _badge),
                 flex_wrap="wrap",
@@ -60,11 +60,11 @@ def _list_param_input(param: Dict[str, Any]) -> rx.Component:
 def _param_input(param: Dict[str, Any]) -> rx.Component:
     return rx.vstack(
         rx.hstack(
-            rx.text(param["name"], font_size="xs", font_weight="bold", color="white"),
+            rx.text(param["name"], font_size="xs", font_weight="bold", color="#111111"),
             rx.cond(
                 param["required"],
                 rx.text("*", color="#ff6b6b", font_size="xs"),
-                rx.text("optional", color="#aaaaaa", font_size="xs"),
+                rx.text("optional", color="#666666", font_size="xs"),
             ),
             spacing="1",
         ),

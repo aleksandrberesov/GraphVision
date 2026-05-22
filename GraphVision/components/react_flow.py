@@ -1,10 +1,10 @@
 import reflex as rx
 from typing import Any, Dict, List
 
-_OPEN_DIALOG_EVENT = (
+_OPEN_DIALOG_FOR_PARENT_EVENT = (
     "reflex___state____state"
     ".graph_vision___models___config_state____config_state"
-    ".open_dialog"
+    ".open_dialog_for_parent"
 )
 
 class ReactFlowLib(rx.Component):
@@ -33,8 +33,6 @@ class ReactFlow(ReactFlowLib):
         return f"""
 import {{ Handle, Position }} from "reactflow";
 
-let __rxAddEvents = null;
-
 const _getStatusColor = (status) => {{
   if (status === "setted")     return "#34D399";
   if (status === "fitted")     return "#3B82F6";
@@ -43,16 +41,21 @@ const _getStatusColor = (status) => {{
   return "#9CA3AF";
 }};
 
-const VertexNode = ({{ data }}) => {{
+const _shortClass = (cls) => {{
+  if (!cls) return "";
+  return cls.replace(/^GLM/, "").replace(/(Transformation|Transliterator)$/, "");
+}};
+
+const VertexNode = ({{ data, id }}) => {{
+  const [addEvents] = useContext(EventLoopContext);
   const bg = _getStatusColor(data?.status ?? "");
   const selected = data?.selected ?? false;
+  const shortCls = _shortClass(data?.transformation_class ?? "");
 
   const handlePlus = (e) => {{
     e.stopPropagation();
     e.preventDefault();
-    if (__rxAddEvents) {{
-      __rxAddEvents([ReflexEvent("{_OPEN_DIALOG_EVENT}", {{}}, {{}})]);
-    }}
+    addEvents([ReflexEvent("{_OPEN_DIALOG_FOR_PARENT_EVENT}", {{"node_id": id}}, {{}})]);
   }};
 
   return (
@@ -70,11 +73,15 @@ const VertexNode = ({{ data }}) => {{
       fontSize: "12px",
       color: "#000000",
       boxSizing: "border-box",
+      padding: "2px 4px",
     }}}}>
       <Handle type="target" position={{Position.Top}} />
       <span style={{{{ userSelect: "none", fontWeight: 500 }}}}>{"{data?.label}"}</span>
+      {"{shortCls && ("}
+        <span style={{{{ fontSize: "10px", fontWeight: 600, opacity: 0.85, userSelect: "none" }}}}>{"{shortCls}"}</span>
+      {")"  + "}"}
       {"{data?.status && data.status !== '' && ("}
-        <span style={{{{ fontSize: "9px", opacity: 0.7, marginTop: "2px", userSelect: "none" }}}}>{"{data.status}"}</span>
+        <span style={{{{ fontSize: "9px", opacity: 0.6, marginTop: "1px", userSelect: "none" }}}}>{"{data.status}"}</span>
       {")"  + "}"}
       <button
         onMouseDown={{(e) => e.stopPropagation()}}
@@ -107,14 +114,6 @@ const VertexNode = ({{ data }}) => {{
 }};
 
 const nodeTypes = {{ vertex: VertexNode }};
-
-const ReactFlowEventBridge = () => {{
-  const [addEvents] = useContext(EventLoopContext);
-  useEffect(() => {{
-    __rxAddEvents = addEvents;
-  }}, [addEvents]);
-  return null;
-}};
 """
 
 
@@ -137,13 +136,7 @@ class NodeToolbar(ReactFlowLib):
     position: rx.Var[str]
 
 
-class ReactFlowEventBridge(rx.Component):
-    tag = "ReactFlowEventBridge"
-    # Component body is injected via ReactFlow._get_custom_code()
-
-
 react_flow = ReactFlow.create
 background = Background.create
 controls = Controls.create
 node_toolbar = NodeToolbar.create
-event_bridge = ReactFlowEventBridge.create

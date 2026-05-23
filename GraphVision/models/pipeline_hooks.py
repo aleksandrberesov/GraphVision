@@ -194,3 +194,25 @@ update_schema: Callable[[str, Dict[str, str]], None] = lambda *_: None
 # (session_id: str, vertex_id: str, class_name: str, config: Dict[str, Any]) -> None
 # Update the transformation config for an existing vertex and reset its state to 'initialized'.
 update_transformation_config: Callable[[str, str, str, Dict[str, Any]], None] = lambda *_: None
+
+
+# ---------------------------------------------------------------------------
+# Project-level operations (rename / download / upload)
+# ---------------------------------------------------------------------------
+
+# (old_session_id: str, new_session_id: str) -> bool
+# Rename a project: move the YAML file on disk and re-key the in-memory store.
+# Returns True on success, False when the new name is already taken.
+rename_project: Callable[[str, str], bool] = lambda *_: False
+
+# (session_id: str, ui_nodes: List[Dict], ui_edges: List[Dict],
+#  project_name: str, mode: str) -> str
+# Serialize the full project to a YAML string for download.
+# mode: "structure_only" | "full" | "full_parquet"
+export_project_yaml: Callable[..., str] = lambda *_: ""
+
+# (session_id: str, yaml_bytes: bytes)
+#   -> Optional[Tuple[str, List[Dict], List[Dict]]]
+# Parse a project YAML, reconstruct PipelineGraph, register, and return
+# (project_name, nodes, edges).  Returns None on failure.
+import_project_yaml: Callable[..., Optional[Any]] = lambda *_: None

@@ -58,11 +58,11 @@ def _project_dialogs() -> rx.Component:
         ),
         rx.dialog.root(
             rx.dialog.content(
-                rx.dialog.title("Rename graph"),
+                rx.dialog.title("Rename project"),
                 rx.vstack(
-                    rx.text("New graph name:"),
+                    rx.text("New project name:"),
                     rx.input(
-                        placeholder="Graph name",
+                        placeholder="Project name",
                         value=DialogState.rename_value,
                         on_change=DialogState.set_rename_value,
                     ),
@@ -71,7 +71,7 @@ def _project_dialogs() -> rx.Component:
                         rx.dialog.close(
                             rx.button(
                                 "Rename",
-                                on_click=GraphState.set_name(DialogState.rename_value),
+                                on_click=GraphState.rename_project(DialogState.rename_value),
                                 disabled=DialogState.rename_value == "",
                             )
                         ),
@@ -155,10 +155,10 @@ def top_menu() -> rx.Component:
             rx.menu.content(
                 rx.menu.item("Load data (CSV / Parquet)…", on_click=DialogState.open_create),
                 rx.menu.separator(),
-                rx.menu.item("Load saved graph (JSON)…", on_click=DialogState.open_load),
+                rx.menu.item("Upload project (YAML)…", on_click=DialogState.open_load),
                 rx.menu.separator(),
-                rx.menu.item("Save graph", on_click=DialogState.open_save),
-                rx.menu.item("Rename graph…", on_click=DialogState.open_rename),
+                rx.menu.item("Download project", on_click=DialogState.open_save),
+                rx.menu.item("Rename project…", on_click=DialogState.open_rename),
                 rx.menu.separator(),
                 rx.menu.item("Edit schema", on_click=SchemaState.open_schema),
                 rx.menu.separator(),

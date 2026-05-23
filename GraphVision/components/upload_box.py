@@ -89,19 +89,34 @@ def upload_box():
         ),
         rx.dialog.root(
             rx.dialog.content(
-                rx.dialog.title("Save graph"),
+                rx.dialog.title("Download project"),
                 rx.vstack(
                     rx.text("File name", font_weight="bold", color="black"),
                     rx.hstack(
                         rx.input(
                             value=DialogState.save_filename,
                             on_change=DialogState.set_save_filename,
-                            placeholder="filename",
+                            placeholder="project-name",
                             flex="1",
                         ),
-                        rx.text(".json", color="gray", white_space="nowrap"),
+                        rx.text(".yaml", color="gray", white_space="nowrap"),
                         align="center",
                         width="100%",
+                    ),
+                    rx.text("Data inclusion", font_weight="bold", color="black"),
+                    rx.radio_group.root(
+                        rx.vstack(
+                            rx.radio_group.item("Structure only — pipeline + schemas, no data",
+                                                value="structure_only"),
+                            rx.radio_group.item("Full project — embed dataset as CSV",
+                                                value="full"),
+                            rx.radio_group.item("Full project — embed dataset as Parquet (smaller)",
+                                                value="full_parquet"),
+                            spacing="2",
+                            align="start",
+                        ),
+                        value=DialogState.download_mode,
+                        on_change=DialogState.set_download_mode,
                     ),
                     rx.hstack(
                         rx.dialog.close(
@@ -113,7 +128,7 @@ def upload_box():
                         ),
                         rx.button(
                             "Download",
-                            on_click=State.save_to_file,
+                            on_click=State.download_project,
                             disabled=DialogState.save_filename.strip() == "",
                         ),
                         spacing="3",
@@ -123,27 +138,27 @@ def upload_box():
                     spacing="3",
                     width="100%",
                 ),
-                max_width="360px",
+                max_width="420px",
             ),
             open=DialogState.save_open,
             on_open_change=DialogState.set_save_open,
         ),
         rx.dialog.root(
             rx.dialog.content(
-                rx.dialog.title("Upload graph"),
+                rx.dialog.title("Upload project"),
                 rx.vstack(
                     rx.upload(
                         rx.vstack(
                             rx.icon(tag="cloud_upload", color="#2563eb"),
                             rx.text(
-                                "Click or drag JSON graph here",
+                                "Click or drag project YAML here (.yaml)",
                                 color="#1d4ed8",
                             ),
                             align="center",
                         ),
-                        id="json_upload",
-                        on_drop=State.handle_json_stage(
-                            rx.upload_files("json_upload")  # type: ignore[arg-type]
+                        id="yaml_upload",
+                        on_drop=State.handle_yaml_stage(
+                            rx.upload_files("yaml_upload")  # type: ignore[arg-type]
                         ),
                         multiple=False,
                         border="1px dashed #2563eb",
@@ -169,7 +184,7 @@ def upload_box():
                         ),
                         rx.button(
                             "Upload",
-                            on_click=State.handle_json_upload,
+                            on_click=State.handle_yaml_upload,
                             disabled=State.uploaded_file == "",
                         ),
                         spacing="3",

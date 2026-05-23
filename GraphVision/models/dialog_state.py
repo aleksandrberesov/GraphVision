@@ -8,6 +8,7 @@ class DialogState(rx.State):
     load_open: bool = False
     save_open: bool = False
     save_filename: str = ""
+    download_mode: str = "structure_only"
     open_project_open: bool = False
     new_project_open: bool = False
     new_project_name: str = ""
@@ -41,9 +42,10 @@ class DialogState(rx.State):
 
     @rx.event
     async def open_save(self):
-        from .graph import GraphState, untitled_name
+        from .graph import GraphState
         graph_state = await self.get_state(GraphState)
-        self.save_filename = graph_state.title.strip() or untitled_name
+        self.save_filename = graph_state.project_name
+        self.download_mode = "structure_only"
         self.save_open = True
 
     @rx.event
@@ -57,6 +59,10 @@ class DialogState(rx.State):
     @rx.event
     def set_save_filename(self, value: str):
         self.save_filename = value
+
+    @rx.event
+    def set_download_mode(self, value: str):
+        self.download_mode = value
 
     @rx.event
     async def open_project_switcher(self):
@@ -85,9 +91,9 @@ class DialogState(rx.State):
 
     @rx.event
     async def open_rename(self):
-        from .graph import GraphState, untitled_name
+        from .graph import GraphState
         graph_state = await self.get_state(GraphState)
-        self.rename_value = graph_state.title.strip() or untitled_name
+        self.rename_value = graph_state.project_name
         self.rename_open = True
 
     @rx.event

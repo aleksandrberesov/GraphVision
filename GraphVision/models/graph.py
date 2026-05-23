@@ -141,24 +141,53 @@ class GraphState(rx.State):
 
     @rx.event
     def set_name(self, name: str):
+        """Legacy — kept so existing wiring doesn't break; use rename_project for real renames."""
         self.title = name
 
     @rx.event
-    async def save_to_file(self):
+    async def rename_project(self, new_name: str):
+        """Rename the current project: move YAML on disk, update project_name, refresh list."""
+        from .auth_state import AuthState
+        from . import pipeline_hooks
         from .dialog_state import DialogState
+        new_name = new_name.strip()
+        if not new_name or new_name == self.project_name:
+            return
+        user_id = (await self.get_state(AuthState)).user_id
+        old_session = f"{user_id}::{self.project_name}"
+        new_session = f"{user_id}::{new_name}"
+        ok = pipeline_hooks.rename_project(old_session, new_session)
+        if ok:
+            old_name = self.project_name
+            self.project_name = new_name
+            yield DialogState.refresh_project_list
+            yield rx.toast.success(f"Project renamed to '{new_name}'")
+            yield LoggerState.add_log(f"Project renamed '{old_name}' → '{new_name}'", "success")
+        else:
+            yield rx.toast.error(f"Cannot rename: '{new_name}' already exists")
+
+    @rx.event
+    async def download_project(self):
+        """Export the full project to a YAML file and trigger browser download."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from .dialog_state import DialogState
+        from . import pipeline_hooks
         dialog_state = await self.get_state(DialogState)
-        name = dialog_state.save_filename.strip() or untitled_name
+        name = dialog_state.save_filename.strip() or self.project_name
+        mode = dialog_state.download_mode
+        user_id = (await self.get_state(AuthState)).user_id
+        session_id = f"{user_id}::{self.project_name}"
         yield DialogState.hide()
-        yield rx.download(
-            data=json.dumps({
-                "nodes": self.nodes,
-                "edges": self.edges,
-                "selected_node_id": self.selected_node_id,
-                "selected_edge_id": self.selected_edge_id,
-            }),
-            filename=f"{name}.json"
-        )
-        yield LoggerState.add_log(f"Graph saved as '{name}.json'", "success")
+        yield BusyState.show("Preparing download…")
+        try:
+            yaml_str = pipeline_hooks.export_project_yaml(
+                session_id, self.nodes, self.edges, name, mode
+            )
+        finally:
+            yield BusyState.hide()
+        yield rx.download(data=yaml_str, filename=f"{name}.yaml")
+        yield LoggerState.add_log(f"Project downloaded as '{name}.yaml' [{mode}]", "success")
 
     # ------------------------------------------------------------------
     # Upload handling
@@ -254,12 +283,13 @@ class GraphState(rx.State):
             self.uploaded_schema_file = file.name
 
     @rx.event
-    async def handle_json_stage(self, files: list[rx.UploadFile]):
+    async def handle_yaml_stage(self, files: list[rx.UploadFile]):
+        """Stage a .yaml/.yml project file for import (stores path, shows filename)."""
         for file in files:
             if file.name is None:
                 continue
             ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
-            if ext != "json":
+            if ext not in ("yaml", "yml"):
                 continue
             data = await file.read()
             path = rx.get_upload_dir() / file.name
@@ -269,9 +299,50 @@ class GraphState(rx.State):
             self.uploaded_file = file.name
 
     @rx.event
-    async def handle_json_upload(self):
+    async def handle_yaml_upload(self):
+        """Import a staged project YAML: reconstruct pipeline + UI, register project."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
         from .dialog_state import DialogState
-        yield DialogState.hide()
+        from . import pipeline_hooks
+        if not self._json_path:
+            return
+        yield BusyState.show("Importing project…")
+        try:
+            user_id = (await self.get_state(AuthState)).user_id
+            existing = pipeline_hooks.list_projects(user_id)
+            with open(self._json_path, "rb") as fh:
+                yaml_bytes = fh.read()
+            # Peek at project_name to check name conflict before full parse
+            try:
+                import yaml as _yaml
+                peek = _yaml.safe_load(yaml_bytes) or {}
+                incoming_name: str = peek.get("project_name", "imported-project")
+            except Exception:
+                incoming_name = "imported-project"
+            if incoming_name in existing:
+                yield rx.toast.error(
+                    f"Project '{incoming_name}' already exists — rename it before importing"
+                )
+                return
+            session_id = f"{user_id}::__import__"
+            result = pipeline_hooks.import_project_yaml(session_id, yaml_bytes)
+            if result is None:
+                yield rx.toast.error("Failed to import — invalid project YAML")
+                return
+            project_name, nodes, edges = result
+            self.project_name = project_name
+            self.nodes = nodes
+            self.edges = edges
+            self.data_loaded = True
+            self._json_path = ""
+            self.uploaded_file = ""
+            yield DialogState.refresh_project_list
+            yield rx.toast.success(f"Project '{project_name}' imported")
+            yield LoggerState.add_log(f"Project '{project_name}' imported from YAML", "success")
+        finally:
+            yield BusyState.hide()
+            yield DialogState.hide()
 
     # ------------------------------------------------------------------
     # Node / edge operations

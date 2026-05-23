@@ -283,6 +283,12 @@ class GraphState(rx.State):
             self.uploaded_schema_file = file.name
 
     @rx.event
+    def clear_staged_yaml(self):
+        """Discard a staged YAML file (e.g. when the user cancels the rename dialog)."""
+        self._json_path = ""
+        self.uploaded_file = ""
+
+    @rx.event
     async def handle_yaml_stage(self, files: list[rx.UploadFile]):
         """Stage a .yaml/.yml project file for import (stores path, shows filename)."""
         for file in files:
@@ -308,25 +314,60 @@ class GraphState(rx.State):
         if not self._json_path:
             return
         yield BusyState.show("Importing project…")
+        user_id = (await self.get_state(AuthState)).user_id
+        existing = pipeline_hooks.list_projects(user_id)
+        with open(self._json_path, "rb") as fh:
+            yaml_bytes = fh.read()
+        # Peek at project_name to check for name conflict before full parse
         try:
-            user_id = (await self.get_state(AuthState)).user_id
-            existing = pipeline_hooks.list_projects(user_id)
-            with open(self._json_path, "rb") as fh:
-                yaml_bytes = fh.read()
-            # Peek at project_name to check name conflict before full parse
-            try:
-                import yaml as _yaml
-                peek = _yaml.safe_load(yaml_bytes) or {}
-                incoming_name: str = peek.get("project_name", "imported-project")
-            except Exception:
-                incoming_name = "imported-project"
-            if incoming_name in existing:
-                yield rx.toast.error(
-                    f"Project '{incoming_name}' already exists — rename it before importing"
-                )
-                return
+            import yaml as _yaml
+            peek = _yaml.safe_load(yaml_bytes) or {}
+            incoming_name: str = peek.get("project_name", "imported-project")
+        except Exception:
+            incoming_name = "imported-project"
+        if incoming_name in existing:
+            # Name conflict — ask the user to pick a different name via dialog
+            yield BusyState.hide()
+            yield DialogState.hide()
+            yield DialogState.open_import_rename(incoming_name)
+            return
+        for _e in self._do_import(user_id, yaml_bytes):
+            yield _e
+
+    @rx.event
+    async def handle_yaml_upload_with_override(self):
+        """Confirm import using the name chosen in the import-rename dialog."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from .dialog_state import DialogState
+        from . import pipeline_hooks
+        dialog_state = await self.get_state(DialogState)
+        override_name = dialog_state.import_rename_value.strip()
+        if not override_name or not self._json_path:
+            return
+        user_id = (await self.get_state(AuthState)).user_id
+        existing = pipeline_hooks.list_projects(user_id)
+        if override_name in existing:
+            yield rx.toast.error(
+                f"Project '{override_name}' already exists — choose a different name"
+            )
+            return
+        yield BusyState.show("Importing project…")
+        with open(self._json_path, "rb") as fh:
+            yaml_bytes = fh.read()
+        for _e in self._do_import(user_id, yaml_bytes, name_override=override_name):
+            yield _e
+
+    def _do_import(self, user_id: str, yaml_bytes: bytes, name_override: str = ""):
+        """Shared import logic used by both upload paths. Yields Reflex events."""
+        from .busy_state import BusyState
+        from .dialog_state import DialogState
+        from . import pipeline_hooks
+        try:
             session_id = f"{user_id}::__import__"
-            result = pipeline_hooks.import_project_yaml(session_id, yaml_bytes)
+            result = pipeline_hooks.import_project_yaml(
+                session_id, yaml_bytes, name_override or None
+            )
             if result is None:
                 yield rx.toast.error("Failed to import — invalid project YAML")
                 return

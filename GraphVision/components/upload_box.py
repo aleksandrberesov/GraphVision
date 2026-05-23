@@ -199,4 +199,50 @@ def upload_box():
             open=DialogState.load_open,
             on_open_change=DialogState.set_load_open,
         ),
+        # Import-rename dialog — shown when the uploaded YAML has a name that
+        # already exists among the user's saved projects.
+        rx.dialog.root(
+            rx.dialog.content(
+                rx.dialog.title("Project name already exists"),
+                rx.vstack(
+                    rx.text(
+                        "A project named ",
+                        rx.text.strong(DialogState.import_conflict_name),
+                        " already exists. Enter a new name to import it under:",
+                        color="white",
+                    ),
+                    rx.input(
+                        value=DialogState.import_rename_value,
+                        on_change=DialogState.set_import_rename_value,
+                        placeholder="new-project-name",
+                        width="100%",
+                        auto_focus=True,
+                    ),
+                    rx.hstack(
+                        rx.button(
+                            "Cancel",
+                            variant="outline",
+                            color_scheme="gray",
+                            on_click=[
+                                DialogState.set_import_rename_open(False),
+                                State.clear_staged_yaml,
+                            ],
+                        ),
+                        rx.button(
+                            "Import",
+                            on_click=State.handle_yaml_upload_with_override,
+                            disabled=DialogState.import_rename_value.strip() == "",
+                        ),
+                        spacing="3",
+                        justify="end",
+                        width="100%",
+                    ),
+                    spacing="4",
+                    width="100%",
+                ),
+                max_width="420px",
+            ),
+            open=DialogState.import_rename_open,
+            on_open_change=DialogState.set_import_rename_open,
+        ),
     )

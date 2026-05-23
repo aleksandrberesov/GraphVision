@@ -15,6 +15,10 @@ class DialogState(rx.State):
     rename_open: bool = False
     rename_value: str = ""
     project_list: List[str] = []
+    # Import-rename dialog (shown when an uploaded YAML conflicts with an existing project name)
+    import_rename_open: bool = False
+    import_rename_value: str = ""
+    import_conflict_name: str = ""
 
     @rx.event
     def open_create(self):
@@ -105,6 +109,21 @@ class DialogState(rx.State):
         self.rename_value = value
 
     @rx.event
+    def open_import_rename(self, conflict_name: str):
+        """Open the import-rename dialog pre-filled with '<conflict_name>-copy'."""
+        self.import_conflict_name = conflict_name
+        self.import_rename_value = f"{conflict_name}-copy"
+        self.import_rename_open = True
+
+    @rx.event
+    def set_import_rename_open(self, value: bool):
+        self.import_rename_open = value
+
+    @rx.event
+    def set_import_rename_value(self, value: str):
+        self.import_rename_value = value
+
+    @rx.event
     async def refresh_project_list(self):
         from .auth_state import AuthState
         from . import pipeline_hooks
@@ -128,3 +147,4 @@ class DialogState(rx.State):
         self.open_project_open = False
         self.new_project_open = False
         self.rename_open = False
+        self.import_rename_open = False

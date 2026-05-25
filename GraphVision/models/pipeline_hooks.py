@@ -158,6 +158,14 @@ restore_pipeline: Callable[
 # Persist the current in-memory pipeline to disk (best-effort).
 persist_pipeline: Callable[[str], None] = lambda _: None
 
+# (session_id: str, vertex_id: str) -> Optional[Tuple[List[Dict], List[Dict]]]
+# Soft-delete vertex_id and its descendants, prune orphans, persist, and
+# return fresh (nodes, edges).  Returns None when no backend is connected or
+# when the caller attempts to delete the root vertex (silently refused).
+delete_vertex: Callable[
+    [str, str], Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]
+] = lambda *_: None
+
 # (user_id: str) -> List[str]
 # Return the list of project names saved on disk for the given user.
 list_projects: Callable[[str], List[str]] = lambda _: []

@@ -397,14 +397,25 @@ class GraphState(rx.State):
         yield LoggerState.add_log(f"Root node '{new_node['data']['label']}' added", "info")
 
     @rx.event
-    def delete_node(self, node_id: str):
+    async def delete_node(self, node_id: str):
+        from .auth_state import AuthState
+        from . import pipeline_hooks
         node = next((n for n in self.nodes if n["id"] == node_id), None)
         label = node["data"]["label"] if node else node_id
-        self.nodes = [node for node in self.nodes if node["id"] != node_id]
-        self.edges = [
-            edge for edge in self.edges
-            if edge["source"] != node_id and edge["target"] != node_id
-        ]
+        user_id = (await self.get_state(AuthState)).user_id
+        session_id = f"{user_id}::{self.project_name}"
+        result = pipeline_hooks.delete_vertex(session_id, node_id)
+        if result is not None:
+            # Backend did the deletion + cascade + orphan pruning; trust it.
+            self.nodes, self.edges = result
+        else:
+            # No backend connected, or root was attempted — fall back to
+            # local-only removal (keeps the UI consistent in dev/test mode).
+            self.nodes = [n for n in self.nodes if n["id"] != node_id]
+            self.edges = [
+                e for e in self.edges
+                if e["source"] != node_id and e["target"] != node_id
+            ]
         yield self._select_node("")
         yield LoggerState.add_log(f"Node '{label}' deleted", "warning")
 

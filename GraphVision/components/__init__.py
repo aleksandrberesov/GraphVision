@@ -6,6 +6,7 @@ from .upload_box import upload_box
 from .transformer_palette import transformer_palette
 from .top_menu import top_menu
 from .schema_panel import schema_panel
+from .schema_constructor_panel import schema_constructor_panel
 from .logger_panel import logger_panel
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "transformer_palette",
     "top_menu",
     "schema_panel",
+    "schema_constructor_panel",
     "logger_panel",
 ]

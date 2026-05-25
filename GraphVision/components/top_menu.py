@@ -8,7 +8,7 @@ from ..models import DialogState
 from ..models.auth_state import AuthState
 from ..models.config_state import ConfigState
 from ..models.graph import GraphState
-from ..models.schema_state import SchemaState
+from ..models.schema_state import BaseSchemaState, SchemaState
 
 try:
     _APP_VERSION = importlib.metadata.version("reflex_ui")
@@ -160,6 +160,7 @@ def top_menu() -> rx.Component:
                 rx.menu.item("Download project", on_click=DialogState.open_save),
                 rx.menu.item("Rename project…", on_click=DialogState.open_rename),
                 rx.menu.separator(),
+                rx.menu.item("Base schema constructor…", on_click=BaseSchemaState.open_constructor),
                 rx.menu.item("Edit schema", on_click=SchemaState.open_schema),
                 rx.menu.separator(),
                 rx.menu.item("New project…", on_click=DialogState.open_new_project_dialog),

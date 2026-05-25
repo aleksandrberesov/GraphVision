@@ -5,6 +5,7 @@ from ..components import (
     control_panel,
     top_menu,
     schema_panel,
+    schema_constructor_panel,
     logger_panel,
 )
 from ..models import GraphState as State
@@ -34,6 +35,7 @@ def main_page() -> rx.Component:
             overflow="hidden",
         ),
         schema_panel(),
+        schema_constructor_panel(),
         logger_panel(),
         rx.cond(
             BusyState.is_busy,

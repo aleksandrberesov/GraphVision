@@ -455,6 +455,7 @@ class GraphState(rx.State):
     @rx.event
     async def create_graph_with_data(self):
         root_vertex_id = ""
+        schema_was_provided = False  # safe default for the finally block
 
         from .auth_state import AuthState
         from .busy_state import BusyState
@@ -490,6 +491,7 @@ class GraphState(rx.State):
 
             pipeline_hooks.persist_pipeline(session_id)
 
+            schema_was_provided = bool(schema_path)
             self._dataset_path = ""
             self._schema_path = ""
             self._dataset_ext = ""
@@ -497,10 +499,31 @@ class GraphState(rx.State):
             self.uploaded_schema_file = ""
         finally:
             from .dialog_state import DialogState
+            from .schema_state import BaseSchemaState
             yield DialogState.hide()
             yield BusyState.hide()
             yield self._select_node(root_vertex_id)
             yield LoggerState.add_log(f"Graph created with dataset '{self.title}'", "success")
+            # When no schema file was provided, open the constructor inline
+            # (same server-side batch, no client round-trip) so the state
+            # update survives the on_load / hydration cycle that fires right
+            # after the upload dialog closes.
+            if not schema_was_provided and root_vertex_id:
+                info = pipeline_hooks.get_base_schema(session_id)
+                if info is not None:
+                    base_state = await self.get_state(BaseSchemaState)
+                    base_state.all_columns = info.get("all_columns", [])
+                    roles: dict = {}
+                    for col in info.get("targets", []):
+                        roles[col] = "target"
+                    for col in info.get("exposures", []):
+                        roles[col] = "exposure"
+                    for col in info.get("indexes", []):
+                        roles[col] = "index"
+                    for col in info.get("force_drop", []):
+                        roles[col] = "force_drop"
+                    base_state.column_roles = roles
+                    base_state.constructor_open = True
 
     @rx.event
     def on_connect(self, new_edge):
@@ -545,16 +568,43 @@ class GraphState(rx.State):
         """On page load: reload nodes/edges from memory or disk for the current user."""
         from .auth_state import AuthState
         from . import pipeline_hooks
+        from .busy_state import BusyState
+        from .dialog_state import DialogState
+        from .schema_state import BaseSchemaState
+
         user_id = (await self.get_state(AuthState)).user_id
         if not user_id:
             return
-        from .dialog_state import DialogState
+
+        # Show spinner immediately so the empty-state never flashes in.
+        yield BusyState.show("Restoring session…")
+
         session_id = f"{user_id}::{self.project_name}"
         result = pipeline_hooks.restore_pipeline(session_id)
         if result is not None:
             self.nodes, self.edges = result
             self.data_loaded = True
             yield LoggerState.add_log(f"Session restored — project '{self.project_name}'", "info")
+
+            # Re-open the base schema constructor if the user hadn't finished
+            # configuring it before the last reload / logout.
+            info = pipeline_hooks.get_base_schema(session_id)
+            if info and info.get("needs_base_schema"):
+                base_state = await self.get_state(BaseSchemaState)
+                base_state.all_columns = info.get("all_columns", [])
+                roles: dict = {}
+                for col in info.get("targets", []):
+                    roles[col] = "target"
+                for col in info.get("exposures", []):
+                    roles[col] = "exposure"
+                for col in info.get("indexes", []):
+                    roles[col] = "index"
+                for col in info.get("force_drop", []):
+                    roles[col] = "force_drop"
+                base_state.column_roles = roles
+                base_state.constructor_open = True
+
+        yield BusyState.hide()
         yield DialogState.refresh_project_list
 
     @rx.event
@@ -565,6 +615,7 @@ class GraphState(rx.State):
         result = pipeline_hooks.pipeline_to_ui(session_id)
         if result is not None:
             self.nodes, self.edges = result
+            self.data_loaded = True
 
     @rx.event
     async def refresh_statuses_from_pipeline(self):

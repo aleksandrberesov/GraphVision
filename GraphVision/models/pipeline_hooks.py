@@ -166,6 +166,17 @@ delete_vertex: Callable[
     [str, str], Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]
 ] = lambda *_: None
 
+# (session_id: str) -> Optional[Dict[str, Any]]
+# Return the root schema's base params for the schema constructor prefill.
+# Keys: all_columns, targets, exposures, indexes, force_drop (all List[str]).
+get_base_schema: Callable[[str], Optional[Dict[str, Any]]] = lambda _: None
+
+# (session_id: str, base_dict: Dict[str, Any]) -> None
+# Rebuild the root vertex schema from a constructor dict and persist.
+# base_dict keys: targets, exposures, indexes, force_drop,
+#                 force_numeric, force_datetime, force_categorical (all List[str]).
+build_base_schema: Callable[[str, Dict[str, Any]], None] = lambda *_: None
+
 # (user_id: str) -> List[str]
 # Return the list of project names saved on disk for the given user.
 list_projects: Callable[[str], List[str]] = lambda _: []

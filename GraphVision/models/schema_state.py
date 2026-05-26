@@ -23,17 +23,28 @@ class BaseSchemaState(rx.State):
     The constructor lets the user assign each dataset column a *role*
     (target pool, exposure pool, index, force-drop, force type-coercions, or
     plain feature) before the schema is built via DataSchema.from_dataframe.
+
+    Design note — why column_role_items is a base state var, not computed
+    -----------------------------------------------------------------------
+    Reflex compiles local Vars from rx.foreach into JavaScript event-payload
+    expressions.  This only works reliably when rx.foreach iterates over a
+    *base* state var.  If the var is *computed* (derived from other vars),
+    Reflex cannot produce the correct JS serialisation for local-Var partial
+    event arguments (e.g. ``set_role(item["col"])``), so the server receives
+    null/wrong column names, raises a Pydantic validation error, and the
+    WebSocket resets — visible to the user as a "page reload" with all selects
+    snapping back to "none".
+
+    This is the same pattern used by ConfigState.param_schema → update_param,
+    which iterates over a base List[Dict] state var and updates it in-place.
     """
 
     constructor_open: bool = False
-    all_columns: List[str] = []
-    # col_name → role string (one of _ROLES above; "none" means auto-type)
-    column_roles: Dict[str, str] = {}
-
-    @rx.var
-    def column_roles_list(self) -> List[List[str]]:
-        """Computed list of [col, role] pairs for rx.foreach rendering."""
-        return [[col, self.column_roles.get(col, "none")] for col in self.all_columns]
+    # Primary source of truth for the dialog: one dict per column.
+    # Each item: {"col": column_name, "role": role_string}
+    # This is a BASE state var (not computed) so that rx.foreach local-Var
+    # partial event args serialise correctly.
+    column_role_items: List[Dict[str, str]] = []
 
     @rx.event
     def set_constructor_open(self, value: bool):
@@ -41,7 +52,34 @@ class BaseSchemaState(rx.State):
 
     @rx.event
     def set_role(self, col: str, role: str):
-        self.column_roles = {**self.column_roles, col: role}
+        """Update the role for *col* in place — mirrors ConfigState.update_param.
+
+        Kept for backward compatibility.  Prefer set_role_by_index which avoids
+        the JS closure-variable lookup that can silently send col=null.
+        """
+        self.column_role_items = [
+            {**item, "role": role} if item["col"] == col else item
+            for item in self.column_role_items
+        ]
+
+    @rx.event
+    def set_role_by_index(self, idx: int, role: str):
+        """Update the role at position *idx* in column_role_items.
+
+        Uses the row index (from Array.prototype.map's second argument) instead
+        of the column name so the event arg is a plain JS integer — never
+        undefined / null — avoiding the bug where set_role(col=None) silently
+        no-ops and the UI appears to reset all selections back to 'none'.
+
+        Reassigns the whole list (same pattern as set_role) so MutableProxy
+        marks the var dirty and a delta is emitted.
+        """
+        if idx < 0 or idx >= len(self.column_role_items):
+            return
+        self.column_role_items = [
+            {**item, "role": role} if i == idx else item
+            for i, item in enumerate(self.column_role_items)
+        ]
 
     @rx.event
     async def open_constructor(self):
@@ -59,7 +97,7 @@ class BaseSchemaState(rx.State):
         if info is None:
             return
 
-        self.all_columns = info.get("all_columns", [])
+        all_columns: List[str] = info.get("all_columns", [])
 
         # Prefill roles from the existing schema
         roles: Dict[str, str] = {}
@@ -71,7 +109,11 @@ class BaseSchemaState(rx.State):
             roles[col] = "index"
         for col in info.get("force_drop", []):
             roles[col] = "force_drop"
-        self.column_roles = roles
+
+        self.column_role_items = [
+            {"col": col, "role": roles.get(col, "none")}
+            for col in all_columns
+        ]
         self.constructor_open = True
 
     @rx.event
@@ -86,13 +128,13 @@ class BaseSchemaState(rx.State):
         session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
 
         base_dict: Dict[str, Any] = {
-            "targets":           [c for c, r in self.column_roles.items() if r == "target"],
-            "exposures":         [c for c, r in self.column_roles.items() if r == "exposure"],
-            "indexes":           [c for c, r in self.column_roles.items() if r == "index"],
-            "force_drop":        [c for c, r in self.column_roles.items() if r == "force_drop"],
-            "force_numeric":     [c for c, r in self.column_roles.items() if r == "force_numeric"],
-            "force_datetime":    [c for c, r in self.column_roles.items() if r == "force_datetime"],
-            "force_categorical": [c for c, r in self.column_roles.items() if r == "force_categorical"],
+            "targets":           [i["col"] for i in self.column_role_items if i["role"] == "target"],
+            "exposures":         [i["col"] for i in self.column_role_items if i["role"] == "exposure"],
+            "indexes":           [i["col"] for i in self.column_role_items if i["role"] == "index"],
+            "force_drop":        [i["col"] for i in self.column_role_items if i["role"] == "force_drop"],
+            "force_numeric":     [i["col"] for i in self.column_role_items if i["role"] == "force_numeric"],
+            "force_datetime":    [i["col"] for i in self.column_role_items if i["role"] == "force_datetime"],
+            "force_categorical": [i["col"] for i in self.column_role_items if i["role"] == "force_categorical"],
         }
 
         yield BusyState.show("Applying base schema…")

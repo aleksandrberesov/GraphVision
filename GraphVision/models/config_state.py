@@ -33,6 +33,7 @@ _ICONS: Dict[str, str] = {
     "GLMMathematicalTransformation": "sigma",
     "GLMNumericToCategoricalTransformation": "layers",
     "GLMImputationTransformation": "wand",
+    "GLMTinySchemaTransformation": "split",
 }
 
 
@@ -292,7 +293,22 @@ class ConfigState(rx.State):
         self.vertex_id_editing = ""
 
     @rx.event
-    def select_class(self, class_name: str):
+    async def select_class(self, class_name: str):
+        """Select a transformer class.
+
+        When the user picks ``GLMTinySchemaTransformation``, close the generic
+        config dialog and open the dedicated Tiny Schema panel instead.
+        """
+        if class_name == "GLMTinySchemaTransformation":
+            from .graph import GraphState
+            from .tiny_schema_state import TinySchemaState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield TinySchemaState.open_for_parent(parent_id)
+            return
+
         from . import pipeline_hooks
 
         self.selected_class = class_name

@@ -6,6 +6,7 @@ from ..components import (
     top_menu,
     schema_panel,
     schema_constructor_panel,
+    tiny_schema_panel,
     logger_panel,
 )
 from ..models import GraphState as State
@@ -36,6 +37,7 @@ def main_page() -> rx.Component:
         ),
         schema_panel(),
         schema_constructor_panel(),
+        tiny_schema_panel(),
         logger_panel(),
         rx.cond(
             BusyState.is_busy,

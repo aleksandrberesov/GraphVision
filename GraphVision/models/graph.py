@@ -565,10 +565,17 @@ class GraphState(rx.State):
 
     @rx.event
     async def restore_session(self):
-        """On page load: reload nodes/edges from memory or disk for the current user."""
+        """On page load: reload nodes/edges from memory or disk for the current user.
+
+        All state mutations are accumulated synchronously before any yield so
+        that the client receives a single coherent delta: data_loaded=True and
+        constructor_open=True (when applicable) arrive together.  Splitting
+        them across multiple yields caused intermediate states where
+        data_loaded=False was visible while the constructor was open, letting
+        users accidentally open the "Create graph" dialog on top.
+        """
         from .auth_state import AuthState
         from . import pipeline_hooks
-        from .busy_state import BusyState
         from .dialog_state import DialogState
         from .schema_state import BaseSchemaState
 
@@ -576,15 +583,13 @@ class GraphState(rx.State):
         if not user_id:
             return
 
-        # Show spinner immediately so the empty-state never flashes in.
-        yield BusyState.show("Restoring session…")
-
         session_id = f"{user_id}::{self.project_name}"
         result = pipeline_hooks.restore_pipeline(session_id)
+        restored_msg = ""
         if result is not None:
             self.nodes, self.edges = result
             self.data_loaded = True
-            yield LoggerState.add_log(f"Session restored — project '{self.project_name}'", "info")
+            restored_msg = f"Session restored — project '{self.project_name}'"
 
             # Re-open the base schema constructor if the user hadn't finished
             # configuring it before the last reload / logout.
@@ -604,7 +609,9 @@ class GraphState(rx.State):
                 base_state.column_roles = roles
                 base_state.constructor_open = True
 
-        yield BusyState.hide()
+        # First yield: sends the entire accumulated delta in one packet.
+        if restored_msg:
+            yield LoggerState.add_log(restored_msg, "info")
         yield DialogState.refresh_project_list
 
     @rx.event

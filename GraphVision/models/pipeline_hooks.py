@@ -177,6 +177,13 @@ get_base_schema: Callable[[str], Optional[Dict[str, Any]]] = lambda _: None
 #                 force_numeric, force_datetime, force_categorical (all List[str]).
 build_base_schema: Callable[[str, Dict[str, Any]], None] = lambda *_: None
 
+# (session_id: str, parent_vertex_id: str) -> Optional[Dict[str, Any]]
+# Return pools for the Tiny Schema dialog.
+# Keys: targets, exposures, indexes (from root base schema, List[str]) and
+#       features (numeric + categorical cols visible at the parent vertex, List[str]).
+# Returns None when parent is not manifested or backend is not connected.
+get_tiny_schema_pools: Callable[[str, str], Optional[Dict[str, Any]]] = lambda *_: None
+
 # (user_id: str) -> List[str]
 # Return the list of project names saved on disk for the given user.
 list_projects: Callable[[str], List[str]] = lambda _: []

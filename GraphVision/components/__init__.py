@@ -7,6 +7,7 @@ from .transformer_palette import transformer_palette
 from .top_menu import top_menu
 from .schema_panel import schema_panel
 from .schema_constructor_panel import schema_constructor_panel
+from .tiny_schema_panel import tiny_schema_panel
 from .logger_panel import logger_panel
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "top_menu",
     "schema_panel",
     "schema_constructor_panel",
+    "tiny_schema_panel",
     "logger_panel",
 ]

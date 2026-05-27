@@ -504,26 +504,6 @@ class GraphState(rx.State):
             yield BusyState.hide()
             yield self._select_node(root_vertex_id)
             yield LoggerState.add_log(f"Graph created with dataset '{self.title}'", "success")
-            # When no schema file was provided, open the constructor inline
-            # (same server-side batch, no client round-trip) so the state
-            # update survives the on_load / hydration cycle that fires right
-            # after the upload dialog closes.
-            if not schema_was_provided and root_vertex_id:
-                info = pipeline_hooks.get_base_schema(session_id)
-                if info is not None:
-                    base_state = await self.get_state(BaseSchemaState)
-                    base_state.all_columns = info.get("all_columns", [])
-                    roles: dict = {}
-                    for col in info.get("targets", []):
-                        roles[col] = "target"
-                    for col in info.get("exposures", []):
-                        roles[col] = "exposure"
-                    for col in info.get("indexes", []):
-                        roles[col] = "index"
-                    for col in info.get("force_drop", []):
-                        roles[col] = "force_drop"
-                    base_state.column_roles = roles
-                    base_state.constructor_open = True
 
     @rx.event
     def on_connect(self, new_edge):
@@ -577,10 +557,17 @@ class GraphState(rx.State):
         from .auth_state import AuthState
         from . import pipeline_hooks
         from .dialog_state import DialogState
-        from .schema_state import BaseSchemaState
 
         user_id = (await self.get_state(AuthState)).user_id
         if not user_id:
+            return
+
+        # Fast-path: Reflex state survives WebSocket reconnects server-side.
+        # If data_loaded is already True the graph is already in a good state
+        # (e.g. we're on a post-upload reconnect).  Skip the restore to avoid
+        # re-rendering the whole graph and emitting a spurious "Session
+        # restored" log that looks like a page reload.
+        if self.data_loaded:
             return
 
         session_id = f"{user_id}::{self.project_name}"
@@ -591,23 +578,6 @@ class GraphState(rx.State):
             self.data_loaded = True
             restored_msg = f"Session restored — project '{self.project_name}'"
 
-            # Re-open the base schema constructor if the user hadn't finished
-            # configuring it before the last reload / logout.
-            info = pipeline_hooks.get_base_schema(session_id)
-            if info and info.get("needs_base_schema"):
-                base_state = await self.get_state(BaseSchemaState)
-                base_state.all_columns = info.get("all_columns", [])
-                roles: dict = {}
-                for col in info.get("targets", []):
-                    roles[col] = "target"
-                for col in info.get("exposures", []):
-                    roles[col] = "exposure"
-                for col in info.get("indexes", []):
-                    roles[col] = "index"
-                for col in info.get("force_drop", []):
-                    roles[col] = "force_drop"
-                base_state.column_roles = roles
-                base_state.constructor_open = True
 
         # First yield: sends the entire accumulated delta in one packet.
         if restored_msg:

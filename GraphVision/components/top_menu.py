@@ -1,4 +1,5 @@
 import importlib.metadata
+import os
 import subprocess
 from pathlib import Path
 
@@ -16,13 +17,17 @@ except importlib.metadata.PackageNotFoundError:
     _APP_VERSION = "dev"
 
 try:
-    _REPO_ROOT = Path(__file__).parent.parent.parent
-    _BUILD = subprocess.check_output(
-        ["git", "rev-list", "--count", "HEAD"],
-        cwd=_REPO_ROOT,
-        stderr=subprocess.DEVNULL,
-        text=True,
-    ).strip()
+    # In Docker, APP_BUILD_NUMBER is injected as an env var at build time
+    # (the container has no access to the parent .git tree, so git fails there).
+    # In local dev, fall back to counting commits via git.
+    _BUILD = os.environ.get("APP_BUILD_NUMBER", "").strip() or (
+        subprocess.check_output(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=Path(__file__).parent.parent.parent,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    )
 except Exception:
     _BUILD = "0"
 

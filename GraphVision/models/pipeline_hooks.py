@@ -211,6 +211,11 @@ add_model_node: Callable[
 # Returns None when session/vertex not found or vertex is not a model node.
 get_model_results: Callable[[str, str], Optional[Dict[str, Any]]] = lambda *_: None
 
+# (session_id: str, vertex_id: str) -> Optional[bytes]
+# Build and serialize a fitted sklearn.pipeline.Pipeline for the branch ending
+# at vertex_id (must be a fitted model vertex).  Returns joblib bytes or None.
+export_pipeline: Callable[[str, str], Optional[bytes]] = lambda *_: None
+
 
 # ---------------------------------------------------------------------------
 # Data preview

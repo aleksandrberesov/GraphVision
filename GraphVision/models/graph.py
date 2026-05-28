@@ -189,6 +189,35 @@ class GraphState(rx.State):
         yield rx.download(data=yaml_str, filename=f"{name}.yaml")
         yield LoggerState.add_log(f"Project downloaded as '{name}.yaml' [{mode}]", "success")
 
+    @rx.event
+    async def export_branch_pipeline(self):
+        """Serialize the selected branch's fitted sklearn Pipeline and download it."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from . import pipeline_hooks
+        vertex_id = self.selected_node_id
+        if not vertex_id:
+            yield rx.toast.error("Select a fitted model node first")
+            return
+        user_id = (await self.get_state(AuthState)).user_id
+        session_id = f"{user_id}::{self.project_name}"
+        yield BusyState.show("Building pipeline…")
+        try:
+            data = pipeline_hooks.export_pipeline(session_id, vertex_id)
+        finally:
+            yield BusyState.hide()
+        if data is None:
+            yield rx.toast.error(
+                "Pipeline export failed — ensure the model node is fitted. "
+                "Check logs for details."
+            )
+            return
+        filename = f"{self.project_name}_{vertex_id}_pipeline.pkl"
+        yield rx.download(data=data, filename=filename)
+        yield LoggerState.add_log(
+            f"Pipeline exported as '{filename}'", "success"
+        )
+
     # ------------------------------------------------------------------
     # Upload handling
     # ------------------------------------------------------------------

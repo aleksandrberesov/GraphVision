@@ -164,6 +164,7 @@ def top_menu() -> rx.Component:
                 rx.menu.item("Upload project (YAML)…", on_click=DialogState.open_load),
                 rx.menu.separator(),
                 rx.menu.item("Download project", on_click=DialogState.open_save),
+                rx.menu.item("Export pipeline (selected node)…", on_click=GraphState.export_branch_pipeline),
                 rx.menu.item("Rename project…", on_click=DialogState.open_rename),
                 rx.menu.separator(),
                 rx.menu.item("Base schema constructor…", on_click=BaseSchemaState.open_constructor),

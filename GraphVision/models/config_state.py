@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from typing import Any, Dict, List, Optional
 
@@ -85,6 +86,13 @@ class ConfigState(rx.State):
     @rx.event
     async def open_dialog_with_class(self, class_name: str):
         """Open the config dialog with class_name pre-selected (add mode)."""
+        if class_name == "GLMCategoryMappingTransformation":
+            from .graph import GraphState
+            from .mapping_builder_state import MappingBuilderState
+            graph_state = await self.get_state(GraphState)
+            yield MappingBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
         from . import pipeline_hooks
         from .busy_state import BusyState
         from .graph import GraphState
@@ -110,6 +118,8 @@ class ConfigState(rx.State):
                     initial = ", ".join(default) if isinstance(default, list) else ""
                 elif p["is_bool"]:
                     initial = "" if p["required"] else str(default).lower()
+                elif p["is_dict"]:
+                    initial = json.dumps(default) if isinstance(default, dict) else ("" if default is None else str(default))
                 else:
                     initial = "" if p["required"] else ("" if default is None else str(default))
                 params.append({**p, "value": initial})
@@ -228,6 +238,13 @@ class ConfigState(rx.State):
         if node_data:
             class_name: str = node_data.get("transformation_class", "")
             existing_config: Dict[str, Any] = node_data.get("transformation_config", {})
+
+            if class_name == "GLMCategoryMappingTransformation":
+                from .mapping_builder_state import MappingBuilderState
+                yield BusyState.hide()
+                yield MappingBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
             self.selected_class = class_name
 
             schema = pipeline_hooks.describe_transformer(class_name)
@@ -245,6 +262,14 @@ class ConfigState(rx.State):
                             initial = str(existing_value).lower()
                         else:
                             initial = "" if p["required"] else str(p["default"]).lower()
+                    elif p["is_dict"]:
+                        if isinstance(existing_value, dict):
+                            initial = json.dumps(existing_value)
+                        elif existing_value is not None:
+                            initial = str(existing_value)
+                        else:
+                            d = p["default"]
+                            initial = json.dumps(d) if isinstance(d, dict) else ("" if d is None else str(d))
                     else:
                         if existing_value is not None:
                             initial = str(existing_value)
@@ -309,6 +334,16 @@ class ConfigState(rx.State):
             yield TinySchemaState.open_for_parent(parent_id)
             return
 
+        if class_name == "GLMCategoryMappingTransformation":
+            from .graph import GraphState
+            from .mapping_builder_state import MappingBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield MappingBuilderState.open_for_parent(parent_id)
+            return
+
         from . import pipeline_hooks
 
         self.selected_class = class_name
@@ -324,6 +359,8 @@ class ConfigState(rx.State):
                 initial = ", ".join(default) if isinstance(default, list) else ""
             elif p["is_bool"]:
                 initial = "" if p["required"] else str(default).lower()
+            elif p["is_dict"]:
+                initial = json.dumps(default) if isinstance(default, dict) else ("" if default is None else str(default))
             else:
                 initial = "" if p["required"] else ("" if default is None else str(default))
             params.append({**p, "value": initial})
@@ -358,6 +395,14 @@ class ConfigState(rx.State):
             return
 
         config: Dict[str, Any] = {}
+        missing = [
+            p["name"]
+            for p in self.param_schema
+            if p["required"] and p.get("source", "user") != "schema" and not p.get("value", "").strip()
+        ]
+        if missing:
+            yield rx.toast.error(f"Required fields missing: {', '.join(missing)}")
+            return
         for p in self.param_schema:
             name: str = p["name"]
             ann: str = p["annotation"]
@@ -369,6 +414,15 @@ class ConfigState(rx.State):
                 config[name] = [c.strip() for c in raw.split(",") if c.strip()]
             elif p["is_bool"]:
                 config[name] = raw.lower() in ("true", "1", "yes")
+            elif p["is_dict"]:
+                if raw.strip():
+                    try:
+                        config[name] = json.loads(raw)
+                    except json.JSONDecodeError:
+                        yield rx.toast.error(f"Invalid JSON for '{name}'")
+                        return
+                else:
+                    config[name] = None if required else default
             elif ann == "int":
                 try:
                     config[name] = int(raw)
@@ -398,6 +452,6 @@ class ConfigState(rx.State):
             )
             self.is_edit_mode = False
             self.vertex_id_editing = ""
-            return GraphState.refresh_statuses_from_pipeline()
+            yield GraphState.refresh_statuses_from_pipeline()
         else:
-            return GraphState.add_transformation_node(self.selected_class, config)
+            yield GraphState.add_transformation_node(self.selected_class, config)

@@ -8,6 +8,7 @@ from .top_menu import top_menu
 from .schema_panel import schema_panel
 from .schema_constructor_panel import schema_constructor_panel
 from .tiny_schema_panel import tiny_schema_panel
+from .mapping_builder_panel import mapping_builder_panel
 from .logger_panel import logger_panel
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "schema_panel",
     "schema_constructor_panel",
     "tiny_schema_panel",
+    "mapping_builder_panel",
     "logger_panel",
 ]

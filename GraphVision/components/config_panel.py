@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import reflex as rx
 
@@ -39,10 +39,40 @@ def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
     )
 
 
-def _list_param_input(param: Dict[str, Any]) -> rx.Component:
-    """Column picker: clickable badges from available_columns + a manual text input."""
+def _make_fixed_choice_badges(param_name_var, param_value_var, choices_var) -> rx.Component:
+    """Render clickable badges for a fixed set of choices (e.g. aggregation options)."""
+    def _badge(choice: str) -> rx.Component:
+        is_selected = param_value_var.to(str).contains(choice)
+        return rx.badge(
+            choice,
+            on_click=ConfigState.toggle_column(param_name_var, choice),
+            cursor="pointer",
+            color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
+            variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+            font_size="xs",
+        )
+
     return rx.vstack(
-        _make_column_badges(param["name"], param["value"]),
+        rx.text("Select values:", font_size="xs", color="white"),
+        rx.flex(
+            rx.foreach(choices_var.to(List[str]), _badge),
+            flex_wrap="wrap",
+            gap="1",
+            width="100%",
+        ),
+        spacing="1",
+        width="100%",
+    )
+
+
+def _list_param_input(param: Dict[str, Any]) -> rx.Component:
+    """Column picker: fixed-choice or column badges + a manual text input."""
+    return rx.vstack(
+        rx.cond(
+            param["list_choices"],
+            _make_fixed_choice_badges(param["name"], param["value"], param["list_choices"]),
+            _make_column_badges(param["name"], param["value"]),
+        ),
         rx.input(
             placeholder="col1, col2, ...",
             value=param["value"],
@@ -54,6 +84,21 @@ def _list_param_input(param: Dict[str, Any]) -> rx.Component:
         ),
         spacing="1",
         width="100%",
+    )
+
+
+def _dict_param_input(param: Dict[str, Any]) -> rx.Component:
+    """JSON textarea for dict-type params."""
+    return rx.text_area(
+        value=param["value"],
+        placeholder='{"key": "value"}',
+        on_change=ConfigState.update_param(param["name"]),
+        width="100%",
+        min_height="80px",
+        color="#111111",
+        background_color="white",
+        font_family="monospace",
+        font_size="xs",
     )
 
 
@@ -81,14 +126,29 @@ def _param_input(param: Dict[str, Any]) -> rx.Component:
                     color="#111111",
                     background_color="white",
                 ),
-                rx.input(
-                    value=param["value"],
-                    placeholder=rx.cond(param["required"], "required", "optional"),
-                    on_change=ConfigState.update_param(param["name"]),
-                    width="100%",
-                    color="#111111",
-                    background_color="white",
-                    class_name="modal-input",
+                rx.cond(
+                    param["is_enum"],
+                    rx.select(
+                        param["choices"].to(List[str]),
+                        value=param["value"],
+                        on_change=ConfigState.update_param(param["name"]),
+                        width="100%",
+                        color="#111111",
+                        background_color="white",
+                    ),
+                    rx.cond(
+                        param["is_dict"],
+                        _dict_param_input(param),
+                        rx.input(
+                            value=param["value"],
+                            placeholder=rx.cond(param["required"], "required", "optional"),
+                            on_change=ConfigState.update_param(param["name"]),
+                            width="100%",
+                            color="#111111",
+                            background_color="white",
+                            class_name="modal-input",
+                        ),
+                    ),
                 ),
             ),
         ),

@@ -107,6 +107,10 @@ describe_transformer: Callable[[str], Optional[Dict[str, Any]]] = lambda _: None
 # Returns None if vertex not found or not yet manifested.
 get_vertex_columns: Callable[[str, str], Optional[Dict[str, List[str]]]] = lambda *_: None
 
+# (session_id: str, vertex_id: str, column: str) -> List[str]
+# Return sorted unique string values for a column at a vertex.
+get_unique_column_values: Callable[[str, str, str], List[str]] = lambda *_: []
+
 # (session_id: str, vertex_id: str, column: str, row_filter=None) -> Optional[Dict[str, Any]]
 # Compute or retrieve cached distribution for a column at a vertex.
 # Result keys: histogram (List[float]), kde_curve (List[{x,y}]), statistics (Dict).

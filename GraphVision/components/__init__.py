@@ -10,6 +10,7 @@ from .schema_constructor_panel import schema_constructor_panel
 from .tiny_schema_panel import tiny_schema_panel
 from .mapping_builder_panel import mapping_builder_panel
 from .logger_panel import logger_panel
+from .model_config_panel import model_config_panel
 
 __all__ = [
     "plot_layout",
@@ -24,4 +25,5 @@ __all__ = [
     "tiny_schema_panel",
     "mapping_builder_panel",
     "logger_panel",
+    "model_config_panel",
 ]

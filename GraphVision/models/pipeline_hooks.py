@@ -192,6 +192,18 @@ get_tiny_schema_pools: Callable[[str, str], Optional[Dict[str, Any]]] = lambda *
 # Return the list of project names saved on disk for the given user.
 list_projects: Callable[[str], List[str]] = lambda _: []
 
+# () -> Dict[str, Any]
+# Return GLM family/link metadata for the model config dialog.
+# Shape: {family_name: {"canonical_link": str, "available_links": [str, ...]}, ...}
+describe_glm_families: Callable[[], Dict[str, Any]] = lambda: {}
+
+# (session_id: str, parent_id: str, family: str, link: str, ui_node_id: str) -> Optional[str]
+# Add a GLM model vertex as a child of parent_id.
+# Returns the vertex_id on success, None on failure.
+add_model_node: Callable[
+    [str, str, str, str, str], Optional[str]
+] = lambda *_: None
+
 
 # ---------------------------------------------------------------------------
 # Data preview

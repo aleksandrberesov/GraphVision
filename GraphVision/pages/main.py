@@ -9,6 +9,7 @@ from ..components import (
     tiny_schema_panel,
     mapping_builder_panel,
     logger_panel,
+    model_config_panel,
 )
 from ..models import GraphState as State
 from ..models.busy_state import BusyState
@@ -40,6 +41,7 @@ def main_page() -> rx.Component:
         schema_constructor_panel(),
         tiny_schema_panel(),
         mapping_builder_panel(),
+        model_config_panel(),
         logger_panel(),
         rx.cond(
             BusyState.is_busy,

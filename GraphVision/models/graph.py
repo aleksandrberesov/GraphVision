@@ -689,6 +689,54 @@ class GraphState(rx.State):
             if any(n["id"] == new_node["id"] for n in self.nodes):
                 yield self._select_node(new_node["id"])
 
+    @rx.event
+    async def add_model_node(self, parent_id: str, family: str, link: str):
+        """Add a GLM model vertex as a child of parent_id and select it."""
+        import asyncio
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from .logger_state import LoggerState
+
+        new_node = self.create_default_node()
+        yield BusyState.show("Adding model node…")
+        await asyncio.sleep(0.05)
+        try:
+            new_node["data"]["transformation_class"] = "GLMModelEstimator"
+            new_node["data"]["transformation_config"] = {"family": family, "link": link}
+            new_node["data"]["node_type"] = "model"
+            self.nodes.append(new_node)
+
+            if parent_id and next((n for n in self.nodes if n["id"] == parent_id), None):
+                self.add_edge(parent_id, new_node["id"])
+                self.arrange_nodes_in_row(parent_id)
+
+            from . import pipeline_hooks
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
+            registered_id = pipeline_hooks.add_model_node(
+                session_id, parent_id, family, link, new_node["id"]
+            )
+            for entry in pipeline_hooks.pending_logs:
+                yield LoggerState.add_log(entry["message"], entry["level"])
+            pipeline_hooks.pending_logs = []
+
+            if registered_id is None:
+                self.nodes = [n for n in self.nodes if n["id"] != new_node["id"]]
+                self.edges = [
+                    e for e in self.edges
+                    if e["source"] != new_node["id"] and e["target"] != new_node["id"]
+                ]
+                yield rx.toast.error("Failed to add model node — no dataset loaded?")
+                yield LoggerState.add_log("Failed to add GLM model node", "error")
+                return
+
+            pipeline_hooks.persist_pipeline(session_id)
+            yield LoggerState.add_log(f"Model node added (family={family}, link={link})", "info")
+
+        finally:
+            yield BusyState.hide()
+            if any(n["id"] == new_node["id"] for n in self.nodes):
+                yield self._select_node(new_node["id"])
+
     # ------------------------------------------------------------------
     # Multi-project support
     # ------------------------------------------------------------------

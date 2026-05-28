@@ -9,6 +9,7 @@ from ..models import DialogState
 from ..models.auth_state import AuthState
 from ..models.config_state import ConfigState
 from ..models.graph import GraphState
+from ..models.model_config_state import ModelConfigState
 from ..models.schema_state import BaseSchemaState, SchemaState
 
 try:
@@ -192,7 +193,14 @@ def top_menu() -> rx.Component:
                     ),
                 ),
                 rx.menu.separator(),
-                rx.menu.item("Models", disabled=True),
+                rx.menu.item(
+                    rx.hstack(
+                        rx.icon("cpu", size=14),
+                        rx.text("GLM Model"),
+                        spacing="2",
+                    ),
+                    on_click=ModelConfigState.open_for_parent(GraphState.selected_node_id),
+                ),
             ),
         ),
         rx.menu.root(

@@ -5,6 +5,74 @@ from typing import Any, Dict, List, Optional
 import reflex as rx
 
 
+def _build_model_summary_html(summary: Dict[str, Any]) -> str:
+    if not summary:
+        return ""
+    td = "padding:3px 8px;font-size:11px"
+    rows = [
+        ("Family",         summary.get("family", "—")),
+        ("Link",           summary.get("link", "—")),
+        ("Target",         summary.get("target") or "—"),
+        ("Exposure",       summary.get("exposure") or "none"),
+        ("N obs",          str(summary.get("n_obs", "—"))),
+        ("N features",     str(summary.get("n_features", "—"))),
+        ("df model",       str(summary.get("df_model", "—"))),
+        ("df residual",    str(summary.get("df_residual", "—"))),
+        ("Log-likelihood", f"{summary['log_likelihood']:.4f}" if "log_likelihood" in summary else "—"),
+        ("Deviance",       f"{summary['deviance']:.4f}" if "deviance" in summary else "—"),
+        ("Null deviance",  f"{summary['null_deviance']:.4f}" if "null_deviance" in summary else "—"),
+        ("Pseudo-R²",      f"{summary['pseudo_r2']:.4f}" if summary.get("pseudo_r2") is not None else "—"),
+        ("AIC",            f"{summary['aic']:.4f}" if "aic" in summary else "—"),
+        ("BIC",            f"{summary['bic']:.4f}" if "bic" in summary else "—"),
+    ]
+    rows_html = "".join(
+        f"<tr><td style='{td};color:#6b7280'>{label}</td>"
+        f"<td style='{td};text-align:right;font-weight:500'>{value}</td></tr>"
+        for label, value in rows
+    )
+    return (
+        "<table style='border-collapse:collapse;width:100%;background:#f9fafb;"
+        "border-radius:4px;border:1px solid #e5e7eb'>"
+        f"<tbody>{rows_html}</tbody></table>"
+    )
+
+
+def _build_coefficients_html(coefficients: List[Dict[str, Any]]) -> str:
+    if not coefficients:
+        return ""
+    th = "padding:4px 8px;font-size:10px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:right"
+    th_l = th.replace("text-align:right", "text-align:left")
+    td = "padding:3px 8px;font-size:10px;text-align:right"
+    td_l = td.replace("text-align:right", "text-align:left")
+
+    header = (
+        f"<tr><th style='{th_l}'>Feature</th>"
+        f"<th style='{th}'>Coef</th>"
+        f"<th style='{th}'>Std Err</th>"
+        f"<th style='{th}'>z</th>"
+        f"<th style='{th}'>P>|z|</th></tr>"
+    )
+    rows_html = ""
+    for row in coefficients:
+        pval = row.get("p_value", 1.0)
+        pval_color = "#ef4444" if float(pval) > 0.05 else "inherit"
+        rows_html += (
+            f"<tr>"
+            f"<td style='{td_l}'>{row.get('name', '')}</td>"
+            f"<td style='{td}'>{row.get('coef', '')}</td>"
+            f"<td style='{td}'>{row.get('std_err', '')}</td>"
+            f"<td style='{td}'>{row.get('z_stat', '')}</td>"
+            f"<td style='{td};color:{pval_color}'>{pval}</td>"
+            f"</tr>"
+        )
+    return (
+        "<div style='overflow:auto;max-height:260px;width:100%'>"
+        "<table style='border-collapse:collapse;width:100%;background:#f9fafb;"
+        "border-radius:4px;border:1px solid #e5e7eb'>"
+        f"<thead>{header}</thead><tbody>{rows_html}</tbody></table></div>"
+    )
+
+
 def _corr_color(val: float) -> str:
     """Map correlation value [-1, 1] to a hex color (blue → white → red)."""
     v = max(-1.0, min(1.0, val))
@@ -115,6 +183,15 @@ class PlotState(rx.State):
     mv_warning: str = ""
     corr_html: str = ""
     corr_stability_html: str = ""
+    # Phase 6 — model analytics
+    is_model_node: bool = False
+    model_summary_html: str = ""
+    model_coeffs_html: str = ""
+    model_avp_data: List[Dict[str, Any]] = []
+    model_residuals_data: List[Dict[str, Any]] = []
+    model_lift_data: List[Dict[str, Any]] = []
+    model_gini: float = 0.0
+    model_error: str = ""
 
     @rx.var
     def mixture_family(self) -> str:
@@ -141,9 +218,10 @@ class PlotState(rx.State):
         self.is_open = value
 
     @rx.event
-    async def load_for_node(self, node_id: str):
+    async def load_for_node(self, node_id: str, node_type: str = ""):
         from .auth_state import AuthState
         self.current_node_id = node_id
+        # Reset data-analytics state
         self.dist_data = []
         self.dist_stats_str = ""
         self.is_numeric_dist = False
@@ -167,6 +245,15 @@ class PlotState(rx.State):
         self.mv_warning = ""
         self.corr_html = ""
         self.corr_stability_html = ""
+        # Reset model-analytics state
+        self.is_model_node = False
+        self.model_summary_html = ""
+        self.model_coeffs_html = ""
+        self.model_avp_data = []
+        self.model_residuals_data = []
+        self.model_lift_data = []
+        self.model_gini = 0.0
+        self.model_error = ""
 
         if not node_id:
             self.column_names = []
@@ -177,6 +264,23 @@ class PlotState(rx.State):
         from .graph import GraphState
         graph_state = await self.get_state(GraphState)
         session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
+
+        if node_type == "model":
+            self.is_model_node = True
+            result = pipeline_hooks.get_model_results(session_id, node_id)
+            if result is None:
+                self.model_error = "Model node not found."
+            elif "error" in result:
+                self.model_error = str(result["error"])
+            else:
+                self.model_summary_html = _build_model_summary_html(result.get("summary", {}))
+                self.model_coeffs_html = _build_coefficients_html(result.get("coefficients", []))
+                self.model_avp_data = result.get("actual_vs_predicted", [])
+                self.model_residuals_data = result.get("residuals", [])
+                self.model_lift_data = result.get("lift_curve", [])
+                self.model_gini = float(result.get("gini", 0.0))
+            self.is_open = True
+            return
 
         cols_by_type: Optional[Dict[str, List[str]]] = pipeline_hooks.get_vertex_columns(
             session_id, node_id

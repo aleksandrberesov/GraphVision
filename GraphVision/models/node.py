@@ -6,6 +6,7 @@ class NodeState(rx.State):
     id: str | None = ""
     label: str = ""
     status: str = ""
+    node_type: str = ""
     transformation_class: str = ""
     errors: List[str] = []
 
@@ -42,6 +43,7 @@ class NodeState(rx.State):
             self.id = node.get("id", "")
             self.label = node.get("data", {}).get("label", "")
             self.status = node.get("data", {}).get("status", "")
+            self.node_type = node.get("data", {}).get("node_type", "")
             self.transformation_class = node.get("data", {}).get("transformation_class", "")
             self.errors = node.get("data", {}).get("errors", [])
 

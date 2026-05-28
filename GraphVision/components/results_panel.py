@@ -5,6 +5,140 @@ from ..models import NodeState
 from .mixture_fit_panel import mixture_fit_panel
 
 
+# ---------------------------------------------------------------------------
+# Model analytics view
+# ---------------------------------------------------------------------------
+
+def _model_lift_chart() -> rx.Component:
+    return rx.recharts.composed_chart(
+        rx.recharts.bar(
+            data_key="avg_actual",
+            fill="#3b82f6",
+            fill_opacity=0.7,
+            name="Avg Actual",
+            y_axis_id="left",
+        ),
+        rx.recharts.line(
+            data_key="avg_predicted",
+            stroke="#f97316",
+            dot=False,
+            name="Avg Predicted",
+            y_axis_id="left",
+        ),
+        rx.recharts.line(
+            data_key="lift",
+            stroke="#ef4444",
+            dot=True,
+            name="Lift",
+            y_axis_id="right",
+            stroke_dasharray="4 2",
+        ),
+        rx.recharts.x_axis(data_key="decile", label={"value": "Decile", "position": "insideBottom", "offset": -2}),
+        rx.recharts.y_axis(y_axis_id="left", orientation="left", width=50),
+        rx.recharts.y_axis(y_axis_id="right", orientation="right", width=40),
+        rx.recharts.graphing_tooltip(),
+        rx.recharts.legend(),
+        data=PlotState.model_lift_data,
+        width="100%",
+        height=200,
+    )
+
+
+def _model_avp_chart() -> rx.Component:
+    return rx.recharts.scatter_chart(
+        rx.recharts.scatter(
+            data=PlotState.model_avp_data,
+            fill="#3b82f6",
+            fill_opacity=0.5,
+            name="Obs",
+        ),
+        rx.recharts.x_axis(data_key="actual", name="Actual", type="number"),
+        rx.recharts.y_axis(data_key="predicted", name="Predicted", type="number", width=50),
+        rx.recharts.graphing_tooltip(cursor={"strokeDasharray": "3 3"}),
+        width="100%",
+        height=200,
+    )
+
+
+def _model_residuals_chart() -> rx.Component:
+    return rx.recharts.scatter_chart(
+        rx.recharts.scatter(
+            data=PlotState.model_residuals_data,
+            fill="#ef4444",
+            fill_opacity=0.5,
+            name="Residual",
+        ),
+        rx.recharts.x_axis(data_key="predicted", name="Fitted", type="number"),
+        rx.recharts.y_axis(data_key="residual", name="Residual", type="number", width=55),
+        rx.recharts.graphing_tooltip(cursor={"strokeDasharray": "3 3"}),
+        rx.recharts.reference_line(y=0, stroke="#9ca3af", stroke_dasharray="4 2"),
+        width="100%",
+        height=200,
+    )
+
+
+def _model_results_view() -> rx.Component:
+    return rx.cond(
+        PlotState.model_error != "",
+        rx.callout.root(
+            rx.callout.icon(rx.icon("triangle-alert")),
+            rx.callout.text(PlotState.model_error),
+            color="red",
+            size="2",
+            width="100%",
+        ),
+        rx.vstack(
+            # Fit statistics
+            rx.text("Fit statistics", font_weight="600", font_size="sm"),
+            rx.html(PlotState.model_summary_html),
+            # Coefficients table
+            rx.text("Coefficients", font_weight="600", font_size="sm", margin_top="12px"),
+            rx.cond(
+                PlotState.model_gini != 0.0,
+                rx.text(
+                    "Gini: " + PlotState.model_gini.to_string(),
+                    font_size="xs",
+                    color="gray",
+                ),
+            ),
+            rx.html(PlotState.model_coeffs_html),
+            # Lift / Lorenz chart
+            rx.cond(
+                PlotState.model_lift_data,
+                rx.vstack(
+                    rx.text("Lift curve (by predicted decile)", font_weight="600", font_size="sm", margin_top="12px"),
+                    _model_lift_chart(),
+                    width="100%",
+                    spacing="1",
+                ),
+            ),
+            # Actual vs Predicted scatter
+            rx.cond(
+                PlotState.model_avp_data,
+                rx.vstack(
+                    rx.text("Actual vs Predicted", font_weight="600", font_size="sm", margin_top="12px"),
+                    _model_avp_chart(),
+                    width="100%",
+                    spacing="1",
+                ),
+            ),
+            # Residuals scatter
+            rx.cond(
+                PlotState.model_residuals_data,
+                rx.vstack(
+                    rx.text("Deviance residuals vs Fitted", font_weight="600", font_size="sm", margin_top="12px"),
+                    _model_residuals_chart(),
+                    width="100%",
+                    spacing="1",
+                ),
+            ),
+            width="100%",
+            spacing="2",
+            align_items="flex-start",
+        ),
+    )
+
+
 def _dist_chart() -> rx.Component:
     return rx.cond(
         PlotState.is_numeric_dist,
@@ -297,27 +431,41 @@ def _multivariate_tab() -> rx.Component:
 def results_panel() -> rx.Component:
     return rx.fragment(
         rx.button(
-            "View plots",
-            on_click=PlotState.load_for_node(NodeState.id),
+            rx.cond(
+                NodeState.node_type == "model",
+                "View model results",
+                "View plots",
+            ),
+            on_click=PlotState.load_for_node(NodeState.id, NodeState.node_type),
             disabled=NodeState.status == "",
             width="100%",
         ),
         rx.dialog.root(
             rx.dialog.content(
-                rx.dialog.title("Data at selected node"),
-                rx.tabs.root(
-                    rx.tabs.list(
-                        rx.tabs.trigger("Distribution", value="dist"),
-                        rx.tabs.trigger("Correlation", value="corr"),
-                        rx.tabs.trigger("Feature Importance", value="fi"),
-                        rx.tabs.trigger("Multivariate", value="mv"),
+                rx.dialog.title(
+                    rx.cond(
+                        PlotState.is_model_node,
+                        "Model results at selected node",
+                        "Data at selected node",
                     ),
-                    rx.tabs.content(_distribution_tab(), value="dist"),
-                    rx.tabs.content(_correlation_tab(), value="corr"),
-                    rx.tabs.content(_feature_importance_tab(), value="fi"),
-                    rx.tabs.content(_multivariate_tab(), value="mv"),
-                    default_value="dist",
-                    width="100%",
+                ),
+                rx.cond(
+                    PlotState.is_model_node,
+                    _model_results_view(),
+                    rx.tabs.root(
+                        rx.tabs.list(
+                            rx.tabs.trigger("Distribution", value="dist"),
+                            rx.tabs.trigger("Correlation", value="corr"),
+                            rx.tabs.trigger("Feature Importance", value="fi"),
+                            rx.tabs.trigger("Multivariate", value="mv"),
+                        ),
+                        rx.tabs.content(_distribution_tab(), value="dist"),
+                        rx.tabs.content(_correlation_tab(), value="corr"),
+                        rx.tabs.content(_feature_importance_tab(), value="fi"),
+                        rx.tabs.content(_multivariate_tab(), value="mv"),
+                        default_value="dist",
+                        width="100%",
+                    ),
                 ),
                 rx.hstack(
                     rx.dialog.close(

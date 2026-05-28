@@ -204,6 +204,13 @@ add_model_node: Callable[
     [str, str, str, str, str], Optional[str]
 ] = lambda *_: None
 
+# (session_id: str, vertex_id: str) -> Optional[Dict[str, Any]]
+# Return model analytics for a fitted model vertex.
+# Keys: summary, coefficients, actual_vs_predicted, residuals, lift_curve, gini.
+# Returns {"error": str} when the model has not been fitted yet.
+# Returns None when session/vertex not found or vertex is not a model node.
+get_model_results: Callable[[str, str], Optional[Dict[str, Any]]] = lambda *_: None
+
 
 # ---------------------------------------------------------------------------
 # Data preview

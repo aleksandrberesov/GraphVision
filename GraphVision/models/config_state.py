@@ -86,6 +86,13 @@ class ConfigState(rx.State):
     @rx.event
     async def open_dialog_with_class(self, class_name: str):
         """Open the config dialog with class_name pre-selected (add mode)."""
+        if class_name == "GLMTinySchemaTransformation":
+            from .graph import GraphState
+            from .tiny_schema_state import TinySchemaState
+            graph_state = await self.get_state(GraphState)
+            yield TinySchemaState.open_for_parent(graph_state.selected_node_id)
+            return
+
         if class_name == "GLMCategoryMappingTransformation":
             from .graph import GraphState
             from .mapping_builder_state import MappingBuilderState

@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 import reflex as rx
 
-# Role options shown in the constructor dropdown, in display order.
+# Role options in display order (drives section order in the constructor panel).
 _ROLES = [
     "none",
     "target",
@@ -16,13 +16,27 @@ _ROLES = [
     "force_categorical",
 ]
 
+# Tier-1 roles are mutually exclusive: a column can hold at most one of these.
+# Exposure additionally requires the column to be numeric and allows only one
+# column to hold it at a time.
+_TIER1_ROLES: set = {"none", "target", "index", "exposure"}
+
+# Tier-2 flags are independent boolean overrides: any column can carry any
+# combination of these regardless of its tier-1 role.
+_TIER2_FLAGS: set = {"force_drop", "force_numeric", "force_datetime", "force_categorical"}
+
 
 class BaseSchemaState(rx.State):
     """State for the base-schema constructor dialog.
 
-    The constructor lets the user assign each dataset column a *role*
-    (target pool, exposure pool, index, force-drop, force type-coercions, or
-    plain feature) before the schema is built via DataSchema.from_dataframe.
+    Two-tier role model (mirrors the notebook MultiTabSelector):
+      Tier-1 (exclusive): none / target / index / exposure
+        - A column holds exactly one tier-1 role.
+        - Exposure additionally requires is_numeric=True and allows only one
+          column at a time.
+      Tier-2 (independent flags): force_drop / force_numeric / force_datetime / force_categorical
+        - Each flag is a boolean independent of the tier-1 role and of each
+          other, so a column can be "target" AND "force_categorical" at once.
 
     Design note — why column_role_items is a base state var, not computed
     -----------------------------------------------------------------------
@@ -41,43 +55,65 @@ class BaseSchemaState(rx.State):
 
     constructor_open: bool = False
     # Primary source of truth for the dialog: one dict per column.
-    # Each item: {"col": column_name, "role": role_string}
-    # This is a BASE state var (not computed) so that rx.foreach local-Var
-    # partial event args serialise correctly.
-    column_role_items: List[Dict[str, str]] = []
+    # Each item: {
+    #   "col":              str,
+    #   "role":             str,   # tier-1: "none" | "target" | "index" | "exposure"
+    #   "force_drop":       bool,  # tier-2 flags (independent)
+    #   "force_numeric":    bool,
+    #   "force_datetime":   bool,
+    #   "force_categorical": bool,
+    #   "is_numeric":       bool,  # True when the DataFrame column is numeric
+    #   "val0":             str,
+    #   "val1":             str,
+    # }
+    # BASE var (not computed) so rx.foreach local-Var event args serialise correctly.
+    column_role_items: List[Dict[str, Any]] = []
 
     @rx.event
     def set_constructor_open(self, value: bool):
         self.constructor_open = value
 
     @rx.event
-    def set_role(self, col: str, role: str):
-        """Update the role for *col* in place — mirrors ConfigState.update_param.
+    def toggle_tier1_by_index(self, idx: int, role: str):
+        """Toggle a tier-1 role (none / target / index / exposure) for the column at *idx*.
 
-        Kept for backward compatibility.  Prefer set_role_by_index which avoids
-        the JS closure-variable lookup that can silently send col=null.
-        """
-        self.column_role_items = [
-            {**item, "role": role} if item["col"] == col else item
-            for item in self.column_role_items
-        ]
-
-    @rx.event
-    def set_role_by_index(self, idx: int, role: str):
-        """Update the role at position *idx* in column_role_items.
-
-        Uses the row index (from Array.prototype.map's second argument) instead
-        of the column name so the event arg is a plain JS integer — never
-        undefined / null — avoiding the bug where set_role(col=None) silently
-        no-ops and the UI appears to reset all selections back to 'none'.
-
-        Reassigns the whole list (same pattern as set_role) so MutableProxy
-        marks the var dirty and a delta is emitted.
+        Tier-1 roles are mutually exclusive: clicking assigns the column to
+        *role*; clicking again (same role) reverts it to "none".  Exposure has
+        two extra constraints enforced server-side:
+          - the column must be numeric (is_numeric guard);
+          - at most one column may hold "exposure" at a time (the previous
+            exposure is automatically cleared when a new one is assigned).
         """
         if idx < 0 or idx >= len(self.column_role_items):
             return
+        item = self.column_role_items[idx]
+        if role == "exposure" and not item.get("is_numeric", False):
+            return
+        current = item["role"]
+        new_role = "none" if current == role else role
+        new_items = []
+        for i, it in enumerate(self.column_role_items):
+            if i == idx:
+                new_items.append({**it, "role": new_role})
+            elif new_role == "exposure" and it["role"] == "exposure":
+                new_items.append({**it, "role": "none"})
+            else:
+                new_items.append(it)
+        self.column_role_items = new_items
+
+    @rx.event
+    def toggle_tier2_by_index(self, idx: int, flag: str):
+        """Toggle an independent tier-2 force flag for the column at *idx*.
+
+        The flag is flipped regardless of the column's tier-1 role, so a
+        column can simultaneously be "target" and have "force_categorical" set.
+        """
+        if idx < 0 or idx >= len(self.column_role_items):
+            return
+        if flag not in _TIER2_FLAGS:
+            return
         self.column_role_items = [
-            {**item, "role": role} if i == idx else item
+            {**item, flag: not item.get(flag, False)} if i == idx else item
             for i, item in enumerate(self.column_role_items)
         ]
 
@@ -98,8 +134,9 @@ class BaseSchemaState(rx.State):
             return
 
         all_columns: List[str] = info.get("all_columns", [])
+        numeric_cols: set = set(info.get("numeric_columns", []))
 
-        # Prefill roles from the existing schema
+        # Prefill tier-1 roles from the existing schema.
         roles: Dict[str, str] = {}
         for col in info.get("targets", []):
             roles[col] = "target"
@@ -107,11 +144,26 @@ class BaseSchemaState(rx.State):
             roles[col] = "exposure"
         for col in info.get("indexes", []):
             roles[col] = "index"
-        for col in info.get("force_drop", []):
-            roles[col] = "force_drop"
 
+        # Prefill tier-2 flags.
+        force_drop_set:        set = set(info.get("force_drop", []))
+        force_numeric_set:     set = set(info.get("force_numeric", []))
+        force_datetime_set:    set = set(info.get("force_datetime", []))
+        force_categorical_set: set = set(info.get("force_categorical", []))
+
+        samples: Dict[str, list] = info.get("column_samples", {})
         self.column_role_items = [
-            {"col": col, "role": roles.get(col, "none")}
+            {
+                "col":               col,
+                "role":              roles.get(col, "none"),
+                "force_drop":        col in force_drop_set,
+                "force_numeric":     col in force_numeric_set,
+                "force_datetime":    col in force_datetime_set,
+                "force_categorical": col in force_categorical_set,
+                "is_numeric":        col in numeric_cols,
+                "val0":              samples.get(col, ["—", "—"])[0],
+                "val1":              samples.get(col, ["—", "—"])[1],
+            }
             for col in all_columns
         ]
         self.constructor_open = True
@@ -131,10 +183,10 @@ class BaseSchemaState(rx.State):
             "targets":           [i["col"] for i in self.column_role_items if i["role"] == "target"],
             "exposures":         [i["col"] for i in self.column_role_items if i["role"] == "exposure"],
             "indexes":           [i["col"] for i in self.column_role_items if i["role"] == "index"],
-            "force_drop":        [i["col"] for i in self.column_role_items if i["role"] == "force_drop"],
-            "force_numeric":     [i["col"] for i in self.column_role_items if i["role"] == "force_numeric"],
-            "force_datetime":    [i["col"] for i in self.column_role_items if i["role"] == "force_datetime"],
-            "force_categorical": [i["col"] for i in self.column_role_items if i["role"] == "force_categorical"],
+            "force_drop":        [i["col"] for i in self.column_role_items if i.get("force_drop", False)],
+            "force_numeric":     [i["col"] for i in self.column_role_items if i.get("force_numeric", False)],
+            "force_datetime":    [i["col"] for i in self.column_role_items if i.get("force_datetime", False)],
+            "force_categorical": [i["col"] for i in self.column_role_items if i.get("force_categorical", False)],
         }
 
         yield BusyState.show("Applying base schema…")

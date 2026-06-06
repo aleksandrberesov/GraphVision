@@ -1,148 +1,206 @@
 """Base-schema constructor dialog.
 
-Shows every dataset column with a role dropdown so the user can assign each
-column to a semantic pool (target, exposure, index, force-coercions, or just
-let it be auto-typed as a plain feature).
+Two-tier role model (mirrors the notebook MultiTabSelector):
+
+  Tier-1 — exclusive (target / index / exposure / none)
+    Each column holds at most one tier-1 role.  Clicking a badge assigns it;
+    clicking the same badge again reverts to "none".  The three role-sections
+    (target, index, exposure) are visually separated from the type-override
+    sections by a divider.
+
+    Exposure extras:
+      • Only numeric columns are selectable — non-numeric badges are dimmed
+        and have pointer-events disabled so they cannot be clicked.
+      • At most one column may hold the exposure role at a time; assigning a
+        new one automatically clears the previous exposure (server-side).
+
+  Tier-2 — independent flags (force_drop / force_numeric / force_datetime / force_categorical)
+    Each flag is a boolean independent of the tier-1 role and of every other
+    flag.  A column can simultaneously be "target" AND "force_categorical".
+    Clicking toggles the flag without touching the tier-1 role.
+
+on_open_change is intentionally absent from rx.dialog.root.
+---------------------------------------------------------------
+Radix UI renders portals (dropdowns, tooltips) outside the dialog DOM.
+With on_open_change present, Radix's DismissableLayer fires
+onOpenChange(false) on portal interactions, closing the dialog before the
+selection is committed.  Omitting the handler means only the Cancel /
+Apply buttons can dismiss the dialog.
 """
 
 import reflex as rx
 
-from ..models.schema_state import BaseSchemaState, _ROLES
+from ..models.schema_state import BaseSchemaState, _ROLES, _TIER1_ROLES, _TIER2_FLAGS
 
-# Human-readable labels for the dropdown values.
+# Human-readable labels for each role.
 _ROLE_LABELS: dict = {
-    "none":             "Feature (auto-type)",
-    "target":           "Target",
-    "exposure":         "Exposure",
-    "index":            "Index",
-    "force_drop":       "Drop",
-    "force_numeric":    "Force numeric",
-    "force_datetime":   "Force datetime",
+    "none":              "Feature (auto-type)",
+    "target":            "Target",
+    "exposure":          "Exposure  ·  numeric only, max 1",
+    "index":             "Index",
+    "force_drop":        "Drop",
+    "force_numeric":     "Force numeric",
+    "force_datetime":    "Force datetime",
     "force_categorical": "Force categorical",
 }
 
-# Colour chips shown next to each role in the legend.
+# Colour schemes for badges.
 _ROLE_COLORS: dict = {
-    "none":             "gray",
-    "target":           "blue",
-    "exposure":         "green",
-    "index":            "orange",
-    "force_drop":       "red",
-    "force_numeric":    "cyan",
-    "force_datetime":   "purple",
+    "none":              "gray",
+    "target":            "blue",
+    "exposure":          "green",
+    "index":             "orange",
+    "force_drop":        "red",
+    "force_numeric":     "cyan",
+    "force_datetime":    "purple",
     "force_categorical": "pink",
 }
 
+# Display order within each tier.
+_TIER1_ORDER = ["none", "target", "exposure", "index"]
+_TIER2_ORDER = ["force_drop", "force_numeric", "force_datetime", "force_categorical"]
 
-def _role_row(item: dict, idx: int) -> rx.Component:
-    """Render one {"col": name, "role": current_role} dict as a table row.
 
-    Two-argument signature (item, idx) causes rx.foreach to pass the integer
-    row index as the second arg, compiled to the JS Array.map index variable
-    (``idx_rx_state_``) rather than a dict-key lookup.
+def _make_badge_fn(role: str):
+    """Factory: return a two-arg foreach callback for one role section.
 
-    Root cause of the old bug
-    -------------------------
-    The previous single-arg form used ``on_change=BaseSchemaState.set_role(col_name)``
-    where ``col_name = item["col"]``.  Reflex compiled this partial event arg as
-    the JS expression ``item_rx_state_?.["col"]``.  In certain Radix Select ×
-    Dialog timing scenarios that expression evaluated to ``undefined``; the
-    socket encoder (``(k,v)=>v===undefined?null:v``) converted it to JSON
-    ``null``; and the server received ``col=None``.  ``set_role(col=None)``
-    silently no-oped (``item["col"]==None`` is always False) and sent back the
-    entire list unchanged — all still "none".  The user saw every dropdown snap
-    back to "none", which looked like "the page reloaded".
+    Tier-1 roles use toggle_tier1_by_index and read item["role"].
+    Tier-2 flags use toggle_tier2_by_index and read item[flag] (boolean).
 
-    The fix
-    -------
-    Using ``set_role_by_index(idx)`` with the integer index avoids all property
-    lookups on the item object.  ``idx_rx_state_`` is the raw second argument of
-    Array.map — always a valid integer, never undefined.
+    Each function is given a unique __name__ / __qualname__ so Reflex's
+    component registry treats the 8 callbacks as distinct entries.
     """
-    col_name = item["col"]
-    current_role = item["role"]
-    return rx.table.row(
-        rx.table.cell(
-            rx.text(col_name, size="2", font_family="monospace"),
-            padding_y="1",
-        ),
-        rx.table.cell(
-            rx.select(
-                _ROLES,
-                value=current_role,
-                on_change=BaseSchemaState.set_role_by_index(idx),
-                size="1",
-                width="100%",
+    color = _ROLE_COLORS[role]
+    is_tier2 = role in _TIER2_FLAGS
+
+    def _badge(item: dict, idx: int) -> rx.Component:
+        if is_tier2:
+            # Independent boolean flag — always clickable.
+            is_selected = item[role]
+            return rx.tooltip(
+                rx.badge(
+                    item["col"],
+                    color_scheme=rx.cond(is_selected, color, "gray"),  # type: ignore[arg-type]
+                    variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
+                    on_click=BaseSchemaState.toggle_tier2_by_index(idx, role),
+                    cursor="pointer",
+                    font_family="monospace",
+                    font_size="11px",
+                    user_select="none",
+                ),
+                content=item["col"].to(str) + "  ·  " + item["val0"].to(str) + "  /  " + item["val1"].to(str),
+                delay_duration=300,
+            )
+
+        # Tier-1 role — mutually exclusive within target / index / exposure / none.
+        is_selected = item["role"] == role
+
+        if role == "exposure":
+            # Non-numeric columns are blocked: dimmed, cursor not-allowed, no pointer events.
+            return rx.tooltip(
+                rx.badge(
+                    item["col"],
+                    color_scheme=rx.cond(is_selected, color, "gray"),  # type: ignore[arg-type]
+                    variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
+                    on_click=BaseSchemaState.toggle_tier1_by_index(idx, role),
+                    cursor=rx.cond(item["is_numeric"], "pointer", "not-allowed"),  # type: ignore[arg-type]
+                    opacity=rx.cond(item["is_numeric"], "1", "0.35"),  # type: ignore[arg-type]
+                    pointer_events=rx.cond(item["is_numeric"], "auto", "none"),  # type: ignore[arg-type]
+                    font_family="monospace",
+                    font_size="11px",
+                    user_select="none",
+                ),
+                content=item["col"].to(str) + "  ·  " + item["val0"].to(str) + "  /  " + item["val1"].to(str),
+                delay_duration=300,
+            )
+
+        # All other tier-1 sections (none / target / index) — always clickable.
+        return rx.tooltip(
+            rx.badge(
+                item["col"],
+                color_scheme=rx.cond(is_selected, color, "gray"),  # type: ignore[arg-type]
+                variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
+                on_click=BaseSchemaState.toggle_tier1_by_index(idx, role),
+                cursor="pointer",
+                font_family="monospace",
+                font_size="11px",
+                user_select="none",
             ),
-            padding_y="1",
-            min_width="190px",
+            content=item["col"].to(str) + "  ·  " + item["val0"].to(str) + "  /  " + item["val1"].to(str),
+            delay_duration=300,
+        )
+
+    _badge.__name__ = f"_badge_{role}"
+    _badge.__qualname__ = f"_badge_{role}"
+    return _badge
+
+
+# One uniquely-named callback per role, built once at module load time.
+_BADGE_FNS: dict = {role: _make_badge_fn(role) for role in _ROLES}
+
+
+def _role_section(role: str) -> rx.Component:
+    """One role section: labelled header + all columns as badge pickers."""
+    return rx.box(
+        rx.badge(
+            _ROLE_LABELS[role],
+            color_scheme=_ROLE_COLORS[role],
+            size="2",
+            variant="soft",
         ),
+        rx.flex(
+            rx.foreach(BaseSchemaState.column_role_items, _BADGE_FNS[role]),
+            wrap="wrap",
+            gap="1",
+            padding_top="2",
+        ),
+        padding="3",
+        border_radius="6px",
+        border="1px solid #e5e7eb",
+        width="100%",
     )
 
 
 def schema_constructor_panel() -> rx.Component:
-    """Dialog for building / editing the base schema role assignments.
-
-    on_open_change is intentionally absent from rx.dialog.root.
-    ---------------------------------------------------------------
-    Radix UI renders the rx.select dropdown in a portal outside the dialog DOM.
-    When the user clicks a dropdown option, Radix's DismissableLayer sees that
-    pointer-down as an "outside" interaction and fires onOpenChange(false),
-    which closes the dialog before the role is committed.  The user perceives
-    this as the page reloading with their selection reverted to "none".
-
-    Because open=BaseSchemaState.constructor_open makes this a fully controlled
-    dialog, omitting onOpenChange means Radix has no handler to call — outside
-    clicks and Escape are silently ignored, and only the Cancel / Apply buttons
-    (which set constructor_open directly) can dismiss the dialog.
-    """
+    """Dialog for building / editing the base schema role assignments."""
     return rx.dialog.root(
         rx.dialog.content(
             rx.vstack(
                 rx.dialog.title("Base schema constructor"),
                 rx.text(
-                    "Assign a role to each column. "
-                    "'Feature (auto-type)' columns are typed automatically "
-                    "from the data; all others become service columns.",
+                    "Click a column badge to assign it to a role. "
+                    "Click it again to remove it. "
+                    "Tier-1 roles (top group) are exclusive; "
+                    "type overrides (bottom group) are independent flags.",
                     size="2",
                     color_scheme="gray",
                 ),
-                # Legend strip
-                rx.hstack(
-                    *[
-                        rx.badge(
-                            _ROLE_LABELS[r],
-                            color_scheme=_ROLE_COLORS[r],
-                            size="1",
-                            variant="soft",
-                        )
-                        for r in _ROLES
-                    ],
-                    wrap="wrap",
-                    spacing="1",
-                ),
-                # Scrollable column table
+                # Scrollable role sections
                 rx.box(
-                    rx.table.root(
-                        rx.table.header(
-                            rx.table.row(
-                                rx.table.column_header_cell("Column"),
-                                rx.table.column_header_cell("Role"),
-                            )
+                    rx.vstack(
+                        # Tier-1: exclusive role assignment
+                        rx.text(
+                            "Column roles  ·  exclusive",
+                            size="1",
+                            color_scheme="gray",
+                            weight="medium",
                         ),
-                        rx.table.body(
-                            rx.foreach(
-                                BaseSchemaState.column_role_items,
-                                _role_row,
-                            ),
+                        *[_role_section(role) for role in _TIER1_ORDER],
+                        rx.divider(),
+                        # Tier-2: independent type-override flags
+                        rx.text(
+                            "Type overrides  ·  independent",
+                            size="1",
+                            color_scheme="gray",
+                            weight="medium",
                         ),
+                        *[_role_section(role) for role in _TIER2_ORDER],
+                        spacing="3",
                         width="100%",
                     ),
-                    max_height="420px",
+                    max_height="500px",
                     overflow_y="auto",
                     width="100%",
-                    border="1px solid #e5e7eb",
-                    border_radius="6px",
                 ),
                 # Action buttons
                 rx.hstack(
@@ -163,8 +221,8 @@ def schema_constructor_panel() -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
-            max_width="560px",
+            max_width="620px",
         ),
         open=BaseSchemaState.constructor_open,
-        # on_open_change deliberately omitted — see docstring above.
+        # on_open_change deliberately omitted — see module docstring.
     )

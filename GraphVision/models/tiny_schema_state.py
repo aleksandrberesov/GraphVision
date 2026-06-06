@@ -49,7 +49,7 @@ class TinySchemaState(rx.State):
 
     @rx.var
     def can_apply(self) -> bool:
-        return bool(self.selected_target)
+        return bool(self.selected_target) and bool(self.selected_exposure) and bool(self.selected_index)
 
     # ------------------------------------------------------------------ #
     # Events                                                               #

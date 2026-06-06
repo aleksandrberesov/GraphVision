@@ -159,14 +159,14 @@ def tiny_schema_panel() -> rx.Component:
                     TinySchemaState.exposure_options,
                     TinySchemaState.selected_exposure,
                     TinySchemaState.set_exposure,
-                    required=False,
+                    required=True,
                 ),
                 _role_select(
                     "Index",
                     TinySchemaState.index_options,
                     TinySchemaState.selected_index,
                     TinySchemaState.set_index,
-                    required=False,
+                    required=True,
                 ),
 
                 rx.divider(color="#374151"),

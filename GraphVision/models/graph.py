@@ -29,6 +29,20 @@ class GraphState(rx.State):
     data_loaded: bool = False
     project_name: str = "default"
 
+    @rx.var
+    def selected_is_root(self) -> bool:
+        """True when the currently-selected node is the root (no transformation).
+
+        Used to force Tiny Schema as the only transformer allowed directly after
+        the start node.
+        """
+        if not self.selected_node_id:
+            return False
+        node = next((n for n in self.nodes if n["id"] == self.selected_node_id), None)
+        if node is None:
+            return False
+        return node.get("data", {}).get("transformation_class", "") == ""
+
     def _get_color_by_status(self, status: str) -> str:
         if status == "setted":
             return "#34D399"

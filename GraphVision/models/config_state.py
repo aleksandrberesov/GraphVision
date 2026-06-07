@@ -48,6 +48,9 @@ class ConfigState(rx.State):
     param_schema: List[Dict[str, Any]] = []
     available_columns: List[str] = []
     transformer_names: List[str] = []
+    # True when the dialog's parent node is the root — restricts the selectable
+    # transformers to Tiny Schema only (it must be the first node after root).
+    parent_is_root: bool = False
 
     @rx.var
     def transformer_entries(self) -> List[Dict[str, str]]:
@@ -55,6 +58,16 @@ class ConfigState(rx.State):
             {"name": n, "label": _short_label(n), "icon": _ICONS.get(n, "box")}
             for n in self.transformer_names
         ]
+
+    @rx.var
+    def allowed_transformer_names(self) -> List[str]:
+        """Transformer names selectable in the dialog dropdown.
+
+        When the parent node is the root, only Tiny Schema may be added.
+        """
+        if self.parent_is_root:
+            return [n for n in self.transformer_names if n == "GLMTinySchemaTransformation"]
+        return self.transformer_names
 
     @rx.var
     def available_columns_hint(self) -> str:
@@ -70,6 +83,13 @@ class ConfigState(rx.State):
                 val = p.get("value", "")
                 result[name] = [c.strip() for c in val.split(",") if c.strip()]
         return result
+
+    def _is_root_parent(self, graph_state, parent_id: str) -> bool:
+        """Whether *parent_id* refers to the root node (no transformation)."""
+        if not parent_id:
+            return False
+        node = next((n for n in graph_state.nodes if n["id"] == parent_id), None)
+        return node is not None and node.get("data", {}).get("transformation_class", "") == ""
 
     @rx.event
     async def load_transformers(self):
@@ -93,24 +113,29 @@ class ConfigState(rx.State):
             yield TinySchemaState.open_for_parent(graph_state.selected_node_id)
             return
 
+        # Every other transformer is blocked when the parent is the root node —
+        # Tiny Schema must be the first node after root.
+        from .graph import GraphState
+        graph_state = await self.get_state(GraphState)
+        if self._is_root_parent(graph_state, graph_state.selected_node_id):
+            yield rx.toast.error("Only Tiny Schema can be added right after the root node.")
+            return
+
         if class_name == "GLMCategoryMappingTransformation":
-            from .graph import GraphState
             from .mapping_builder_state import MappingBuilderState
-            graph_state = await self.get_state(GraphState)
             yield MappingBuilderState.open_for_parent(graph_state.selected_node_id)
             return
 
         from . import pipeline_hooks
         from .busy_state import BusyState
-        from .graph import GraphState
 
         if not self.transformer_names and not pipeline_hooks.is_transformers_cached():
             yield BusyState.show("Loading transformers...")
 
-        graph_state = await self.get_state(GraphState)
         parent_id = graph_state.selected_node_id
 
         self.transformer_names = pipeline_hooks.available_transformers()
+        self.parent_is_root = False
         self.selected_class = class_name
         self.available_columns = []
         self.is_edit_mode = False
@@ -171,6 +196,7 @@ class ConfigState(rx.State):
         self.vertex_id_editing = ""
 
         graph_state = await self.get_state(GraphState)
+        self.parent_is_root = self._is_root_parent(graph_state, node_id)
         yield graph_state._select_node(node_id)
 
         session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
@@ -200,6 +226,7 @@ class ConfigState(rx.State):
         parent_id = graph_state.selected_node_id
 
         self.transformer_names = pipeline_hooks.available_transformers()
+        self.parent_is_root = self._is_root_parent(graph_state, parent_id)
         self.selected_class = ""
         self.param_schema = []
         self.available_columns = []
@@ -236,6 +263,8 @@ class ConfigState(rx.State):
             return
 
         self.transformer_names = pipeline_hooks.available_transformers()
+        # Editing an existing node — class is fixed, never restrict the dropdown.
+        self.parent_is_root = False
 
         node_data = next(
             (n["data"] for n in graph_state.nodes if n["id"] == vertex_id),

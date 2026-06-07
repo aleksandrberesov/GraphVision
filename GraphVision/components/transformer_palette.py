@@ -5,11 +5,15 @@ from ..models import GraphState
 
 
 def _palette_button(entry: dict) -> rx.Component:
+    is_tiny = entry["name"] == "GLMTinySchemaTransformation"
     return rx.tooltip(
         rx.button(
             rx.icon(entry["icon"], size=15),
             on_click=ConfigState.open_dialog_with_class(entry["name"]),
-            disabled=GraphState.selected_node_id == "",
+            # Disabled with no node selected, and — when the selected node is the
+            # root — for every transformer except Tiny Schema (must be Node 1).
+            disabled=(GraphState.selected_node_id == "")
+            | (GraphState.selected_is_root & ~is_tiny),
             width="34px",
             height="34px",
             padding="0",

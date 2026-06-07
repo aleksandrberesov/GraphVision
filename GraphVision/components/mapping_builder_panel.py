@@ -53,7 +53,7 @@ def _mapping_row(row: Dict[str, str]) -> rx.Component:
         rx.text(
             row["value"],
             width="42%",
-            color="white",
+            color="#111827",
             font_size="sm",
             overflow="hidden",
             text_overflow="ellipsis",
@@ -82,8 +82,8 @@ def mapping_builder_panel() -> rx.Component:
         rx.dialog.content(
             rx.dialog.title(
                 rx.hstack(
-                    rx.icon("tags", size=16, color="#60A5FA"),
-                    rx.text("Category Mapping Builder", color="white"),
+                    rx.icon("tags", size=16, color="#2563EB"),
+                    rx.text("Category Mapping Builder", color="#111827"),
                     spacing="2",
                     align="center",
                 ),
@@ -95,7 +95,7 @@ def mapping_builder_panel() -> rx.Component:
                         "Select columns to map:",
                         font_size="xs",
                         font_weight="bold",
-                        color="white",
+                        color="#111827",
                     ),
                     rx.cond(
                         MappingBuilderState.available_columns,
@@ -127,7 +127,7 @@ def mapping_builder_panel() -> rx.Component:
                                 MappingBuilderState.active_column,
                                 font_size="xs",
                                 font_weight="bold",
-                                color="white",
+                                color="#111827",
                             ),
                             spacing="1",
                         ),
@@ -186,7 +186,7 @@ def mapping_builder_panel() -> rx.Component:
 
                 # ── other params ─────────────────────────────────────────
                 rx.hstack(
-                    rx.text("Unknown strategy:", font_size="xs", color="white"),
+                    rx.text("Unknown strategy:", font_size="xs", color="#111827"),
                     rx.select(
                         ["ignore", "unknown", "most_frequent"],
                         value=MappingBuilderState.unknown_strategy,
@@ -200,7 +200,7 @@ def mapping_builder_panel() -> rx.Component:
                     align="center",
                 ),
                 rx.hstack(
-                    rx.text("Keep original:", font_size="xs", color="white"),
+                    rx.text("Keep original:", font_size="xs", color="#111827"),
                     rx.select(
                         ["true", "false"],
                         value=rx.cond(MappingBuilderState.keep_original, "true", "false"),
@@ -236,7 +236,6 @@ def mapping_builder_panel() -> rx.Component:
                 width="100%",
             ),
             max_width="560px",
-            background="#111827",
         ),
         open=MappingBuilderState.is_open,
         on_open_change=MappingBuilderState.set_is_open,

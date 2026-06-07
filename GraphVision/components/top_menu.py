@@ -189,6 +189,8 @@ def top_menu() -> rx.Component:
                             lambda name: rx.menu.item(
                                 name,
                                 on_click=ConfigState.open_dialog_with_class(name),
+                                disabled=GraphState.selected_is_root
+                                & (name != "GLMTinySchemaTransformation"),
                             ),
                         ),
                     ),

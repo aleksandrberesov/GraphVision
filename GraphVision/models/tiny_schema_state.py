@@ -36,6 +36,13 @@ class TinySchemaState(rx.State):
     selected_index: str = ""
     selected_features: List[str] = []
 
+    # "Create new" service columns for this branch: synthesise a constant-1
+    # exposure / 0..N-1 index under the reserve name when the pool lacks one.
+    create_exposure: bool = False
+    create_index: bool = False
+    reserve_exposure_name: str = "exposure"
+    reserve_index_name: str = "index"
+
     # ------------------------------------------------------------------ #
     # Computed vars                                                        #
     # ------------------------------------------------------------------ #
@@ -49,7 +56,9 @@ class TinySchemaState(rx.State):
 
     @rx.var
     def can_apply(self) -> bool:
-        return bool(self.selected_target) and bool(self.selected_exposure) and bool(self.selected_index)
+        has_exposure = bool(self.selected_exposure) or self.create_exposure
+        has_index = bool(self.selected_index) or self.create_index
+        return bool(self.selected_target) and has_exposure and has_index
 
     # ------------------------------------------------------------------ #
     # Events                                                               #
@@ -86,6 +95,12 @@ class TinySchemaState(rx.State):
         self.index_options   = pools.get("indexes",   [])
         self.feature_options  = pools.get("features",  [])
 
+        # Reserve names for "Create new"; reset the toggles for this open.
+        self.reserve_exposure_name = pools.get("reserve_exposure_name", "exposure")
+        self.reserve_index_name = pools.get("reserve_index_name", "index")
+        self.create_exposure = False
+        self.create_index = False
+
         # Defaults: first item for role selects; all features selected
         self.selected_target   = self.target_options[0]   if self.target_options   else ""
         self.selected_exposure = self.exposure_options[0] if self.exposure_options else ""
@@ -108,11 +123,32 @@ class TinySchemaState(rx.State):
 
     @rx.event
     def set_exposure(self, value: str):
+        # Picking a real exposure supersedes a pending "Create new".
         self.selected_exposure = value
+        self.create_exposure = False
 
     @rx.event
     def set_index(self, value: str):
         self.selected_index = value
+        self.create_index = False
+
+    @rx.event
+    def create_new_exposure(self):
+        """Toggle creating a constant-1 exposure column for this branch."""
+        self.create_exposure = not self.create_exposure
+        if self.create_exposure:
+            self.selected_exposure = self.reserve_exposure_name
+        elif self.selected_exposure == self.reserve_exposure_name:
+            self.selected_exposure = ""
+
+    @rx.event
+    def create_new_index(self):
+        """Toggle creating a 0..N-1 range index column for this branch."""
+        self.create_index = not self.create_index
+        if self.create_index:
+            self.selected_index = self.reserve_index_name
+        elif self.selected_index == self.reserve_index_name:
+            self.selected_index = ""
 
     @rx.event
     def toggle_feature(self, col: str):
@@ -140,6 +176,8 @@ class TinySchemaState(rx.State):
             "exposure":        self.selected_exposure,
             "index":           self.selected_index,
             "feature_columns": list(self.selected_features),
+            "create_exposure": self.create_exposure,
+            "create_index":    self.create_index,
         }
 
         from .graph import GraphState

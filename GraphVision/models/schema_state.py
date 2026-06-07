@@ -54,6 +54,12 @@ class BaseSchemaState(rx.State):
     """
 
     constructor_open: bool = False
+    # "Create new" service columns: when set, a synthetic exposure (constant 1)
+    # / index (0..N-1 range) is created on apply under the reserve name.
+    create_exposure: bool = False
+    create_index: bool = False
+    reserve_exposure_name: str = "exposure"
+    reserve_index_name: str = "index"
     # Primary source of truth for the dialog: one dict per column.
     # Each item: {
     #   "col":              str,
@@ -71,14 +77,31 @@ class BaseSchemaState(rx.State):
 
     @rx.var
     def can_apply(self) -> bool:
-        """True only when at least one target and one index column are assigned."""
+        """True only when at least one target and one index column are assigned.
+
+        A "Create new" index satisfies the index requirement.
+        """
         has_target = any(item["role"] == "target" for item in self.column_role_items)
-        has_index = any(item["role"] == "index" for item in self.column_role_items)
+        has_index = any(item["role"] == "index" for item in self.column_role_items) or self.create_index
         return has_target and has_index
+
+    @rx.var
+    def has_exposure_assigned(self) -> bool:
+        return any(item["role"] == "exposure" for item in self.column_role_items)
 
     @rx.event
     def set_constructor_open(self, value: bool):
         self.constructor_open = value
+
+    @rx.event
+    def create_new_exposure(self):
+        """Toggle creation of a synthetic constant-1 exposure column."""
+        self.create_exposure = not self.create_exposure
+
+    @rx.event
+    def create_new_index(self):
+        """Toggle creation of a synthetic 0..N-1 range index column."""
+        self.create_index = not self.create_index
 
     @rx.event
     def toggle_tier1_by_index(self, idx: int, role: str):
@@ -98,6 +121,10 @@ class BaseSchemaState(rx.State):
             return
         current = item["role"]
         new_role = "none" if current == role else role
+        # A real exposure assignment supersedes a pending "Create new" exposure
+        # (exposure is single).
+        if new_role == "exposure":
+            self.create_exposure = False
         new_items = []
         for i, it in enumerate(self.column_role_items):
             if i == idx:
@@ -143,6 +170,12 @@ class BaseSchemaState(rx.State):
         all_columns: List[str] = info.get("all_columns", [])
         numeric_cols: set = set(info.get("numeric_columns", []))
 
+        # Reserve names for "Create new" service columns; reset the toggles.
+        self.reserve_exposure_name = info.get("reserve_exposure_name", "exposure")
+        self.reserve_index_name = info.get("reserve_index_name", "index")
+        self.create_exposure = False
+        self.create_index = False
+
         # Prefill tier-1 roles from the existing schema.
         roles: Dict[str, str] = {}
         for col in info.get("targets", []):
@@ -186,10 +219,19 @@ class BaseSchemaState(rx.State):
         graph_state = await self.get_state(GraphState)
         session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
 
+        exposures = [i["col"] for i in self.column_role_items if i["role"] == "exposure"]
+        indexes = [i["col"] for i in self.column_role_items if i["role"] == "index"]
+        # "Create new" — append the reserve name so the backend materialises it
+        # (constant 1.0 exposure / 0..N-1 index). Skip exposure if a real one exists.
+        if self.create_exposure and not exposures and self.reserve_exposure_name not in exposures:
+            exposures.append(self.reserve_exposure_name)
+        if self.create_index and self.reserve_index_name not in indexes:
+            indexes.append(self.reserve_index_name)
+
         base_dict: Dict[str, Any] = {
             "targets":           [i["col"] for i in self.column_role_items if i["role"] == "target"],
-            "exposures":         [i["col"] for i in self.column_role_items if i["role"] == "exposure"],
-            "indexes":           [i["col"] for i in self.column_role_items if i["role"] == "index"],
+            "exposures":         exposures,
+            "indexes":           indexes,
             "force_drop":        [i["col"] for i in self.column_role_items if i.get("force_drop", False)],
             "force_numeric":     [i["col"] for i in self.column_role_items if i.get("force_numeric", False)],
             "force_datetime":    [i["col"] for i in self.column_role_items if i.get("force_datetime", False)],

@@ -13,7 +13,7 @@ from ..models.model_config_state import ModelConfigState
 def _family_select() -> rx.Component:
     return rx.vstack(
         rx.hstack(
-            rx.text("Family", font_size="xs", font_weight="bold", color="white"),
+            rx.text("Family", font_size="xs", font_weight="bold", color="#111827"),
             rx.text("*", color="#ff6b6b", font_size="xs"),
             spacing="1",
         ),
@@ -34,7 +34,7 @@ def _family_select() -> rx.Component:
 def _link_select() -> rx.Component:
     return rx.vstack(
         rx.hstack(
-            rx.text("Link", font_size="xs", font_weight="bold", color="white"),
+            rx.text("Link", font_size="xs", font_weight="bold", color="#111827"),
             rx.text("*", color="#ff6b6b", font_size="xs"),
             spacing="1",
         ),
@@ -47,8 +47,8 @@ def _link_select() -> rx.Component:
             background_color="white",
         ),
         rx.text(
-            rx.text.span("Canonical: ", color="#9CA3AF", font_size="xs"),
-            rx.text.span(ModelConfigState.canonical_link, color="#60A5FA", font_size="xs"),
+            rx.text.span("Canonical: ", color="#6B7280", font_size="xs"),
+            rx.text.span(ModelConfigState.canonical_link, color="#2563EB", font_size="xs"),
         ),
         spacing="1",
         width="100%",
@@ -62,8 +62,8 @@ def model_config_panel() -> rx.Component:
         rx.dialog.content(
             rx.dialog.title(
                 rx.hstack(
-                    rx.icon("cpu", size=16, color="#A78BFA"),
-                    rx.text("Add GLM Model Node", color="white"),
+                    rx.icon("cpu", size=16, color="#7C3AED"),
+                    rx.text("Add GLM Model Node", color="#111827"),
                     spacing="2",
                     align="center",
                 ),
@@ -75,11 +75,11 @@ def model_config_panel() -> rx.Component:
                         "The model node fits a statsmodels GLM on the branch's data. "
                         "After adding, select the node and click 'Apply' to fit.",
                         font_size="xs",
-                        color="#9CA3AF",
+                        color="#6B7280",
                     ),
                     padding="2",
                     border_radius="4px",
-                    background="#1F2937",
+                    background="#F3F4F6",
                     width="100%",
                 ),
 
@@ -108,7 +108,6 @@ def model_config_panel() -> rx.Component:
                 width="100%",
             ),
             max_width="420px",
-            background="#111827",
         ),
         open=ModelConfigState.is_open,
         on_open_change=ModelConfigState.set_is_open,

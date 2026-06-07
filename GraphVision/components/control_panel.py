@@ -1,7 +1,7 @@
 import reflex as rx
 from ..models import GraphState as State, NodeState as Node, DialogState
 from ..models.config_state import ConfigState
-from ..models.schema_state import SchemaState
+from ..models.schema_state import BaseSchemaState
 from ..models.data_preview_state import DataPreviewState
 from .config_panel import config_panel
 from .data_preview_panel import data_preview_panel
@@ -47,8 +47,8 @@ def _vertex_properties() -> rx.Component:
                     Node.is_root,
                     rx.vstack(
                         rx.button(
-                            "Configure schema",
-                            on_click=SchemaState.open_schema,
+                            "Base schema constructor",
+                            on_click=BaseSchemaState.open_constructor,
                             width="100%",
                             variant="soft",
                             color_scheme="blue",

@@ -12,7 +12,10 @@ def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
     outer rx.foreach) are captured and compiled into the inner foreach correctly.
     """
     def _badge(col: str) -> rx.Component:
-        is_selected = param_value_var.to(str).contains(col)
+        # Exact membership against the tokenised value — NOT a substring test,
+        # which used to make "YearMonth" light up when only "YearMonth_year" was
+        # selected. The value is always joined with ", " (see toggle_column).
+        is_selected = param_value_var.to(str).split(", ").contains(col)
         return rx.badge(
             col,
             on_click=ConfigState.toggle_column(param_name_var, col),
@@ -25,7 +28,7 @@ def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
     return rx.cond(
         ConfigState.available_columns,
         rx.vstack(
-            rx.text("Select columns:", font_size="xs", color="white"),
+            rx.text("Select columns:", font_size="xs", color="#111827"),
             rx.flex(
                 rx.foreach(ConfigState.available_columns, _badge),
                 flex_wrap="wrap",
@@ -42,7 +45,8 @@ def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
 def _make_fixed_choice_badges(param_name_var, param_value_var, choices_var) -> rx.Component:
     """Render clickable badges for a fixed set of choices (e.g. aggregation options)."""
     def _badge(choice: str) -> rx.Component:
-        is_selected = param_value_var.to(str).contains(choice)
+        # Exact membership against the tokenised value (see _make_column_badges).
+        is_selected = param_value_var.to(str).split(", ").contains(choice)
         return rx.badge(
             choice,
             on_click=ConfigState.toggle_column(param_name_var, choice),
@@ -53,7 +57,7 @@ def _make_fixed_choice_badges(param_name_var, param_value_var, choices_var) -> r
         )
 
     return rx.vstack(
-        rx.text("Select values:", font_size="xs", color="white"),
+        rx.text("Select values:", font_size="xs", color="#111827"),
         rx.flex(
             rx.foreach(choices_var.to(List[str]), _badge),
             flex_wrap="wrap",
@@ -105,11 +109,11 @@ def _dict_param_input(param: Dict[str, Any]) -> rx.Component:
 def _param_input(param: Dict[str, Any]) -> rx.Component:
     return rx.vstack(
         rx.hstack(
-            rx.text(param["name"], font_size="xs", font_weight="bold", color="white"),
+            rx.text(param["name"], font_size="xs", font_weight="bold", color="#111827"),
             rx.cond(
                 param["required"],
                 rx.text("*", color="#ff6b6b", font_size="xs"),
-                rx.text("optional", color="white", font_size="xs"),
+                rx.text("optional", color="#6B7280", font_size="xs"),
             ),
             spacing="1",
         ),
@@ -171,10 +175,10 @@ def config_panel() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
             rx.el.style(_MODAL_INPUT_PLACEHOLDER_CSS),
-            rx.dialog.title("Configure transformer", color="white"),
+            rx.dialog.title("Configure transformer", color="#111827"),
             rx.vstack(
                 rx.select(
-                    ConfigState.transformer_names,
+                    ConfigState.allowed_transformer_names,
                     placeholder="Select transformer…",
                     value=ConfigState.selected_class,
                     on_change=ConfigState.select_class,
@@ -195,7 +199,7 @@ def config_panel() -> rx.Component:
                         ConfigState.selected_class != "",
                         rx.text(
                             "No parameters required.",
-                            color="white",
+                            color="#111827",
                             font_size="sm",
                         ),
                         rx.fragment(),

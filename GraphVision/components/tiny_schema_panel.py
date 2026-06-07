@@ -70,16 +70,55 @@ def _feature_badge(col: str) -> rx.Component:
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+def _tiny_create_control(role: str) -> rx.Component:
+    """"+ Create new" button + dashed indicator for the exposure / index roles."""
+    if role == "exposure":
+        active = TinySchemaState.create_exposure
+        name = TinySchemaState.reserve_exposure_name
+        on_click = TinySchemaState.create_new_exposure
+        color = "green"
+    else:  # index
+        active = TinySchemaState.create_index
+        name = TinySchemaState.reserve_index_name
+        on_click = TinySchemaState.create_new_index
+        color = "orange"
+
+    return rx.hstack(
+        rx.button(
+            rx.cond(active, "✕ Remove new column", "+ Create new"),
+            on_click=on_click,
+            size="1",
+            variant="soft",
+            color_scheme=color,
+        ),
+        rx.cond(
+            active,
+            rx.badge(
+                name + "  ·  will be created",
+                color_scheme=color,
+                variant="surface",
+                font_family="monospace",
+                font_size="11px",
+                style={"border": "1px dashed currentColor"},
+            ),
+            rx.fragment(),
+        ),
+        spacing="2",
+        align="center",
+    )
+
+
 def _role_badges(
     label: str,
     options: rx.Var,
     badge_fn,
     required: bool = True,
+    footer=None,
 ) -> rx.Component:
     """A labelled badge-picker for a single-select role column."""
     return rx.vstack(
         rx.hstack(
-            rx.text(label, font_size="xs", font_weight="bold", color="white"),
+            rx.text(label, font_size="xs", font_weight="bold", color="#111827"),
             rx.cond(
                 required,
                 rx.text("*", color="#ff6b6b", font_size="xs"),
@@ -106,6 +145,7 @@ def _role_badges(
                 color="#F87171",
             ),
         ),
+        footer if footer is not None else rx.fragment(),
         spacing="1",
         width="100%",
         align_items="flex_start",
@@ -116,7 +156,7 @@ def _feature_selector() -> rx.Component:
     """Multi-select badges for the feature column list."""
     return rx.vstack(
         rx.hstack(
-            rx.text("Feature columns", font_size="xs", font_weight="bold", color="white"),
+            rx.text("Feature columns", font_size="xs", font_weight="bold", color="#111827"),
             rx.text("(columns kept and passed downstream)", font_size="xs", color="#9CA3AF"),
             spacing="2",
         ),
@@ -127,14 +167,12 @@ def _feature_selector() -> rx.Component:
                 on_click=TinySchemaState.select_all_features,
                 size="1",
                 variant="ghost",
-                color="white",
             ),
             rx.button(
                 "None",
                 on_click=TinySchemaState.clear_all_features,
                 size="1",
                 variant="ghost",
-                color="white",
             ),
             spacing="1",
         ),
@@ -171,8 +209,8 @@ def tiny_schema_panel() -> rx.Component:
         rx.dialog.content(
             rx.dialog.title(
                 rx.hstack(
-                    rx.icon("split", size=16, color="#60A5FA"),
-                    rx.text("Tiny Schema", color="white"),
+                    rx.icon("split", size=16, color="#2563EB"),
+                    rx.text("Tiny Schema", color="#111827"),
                     spacing="2",
                     align="center",
                 ),
@@ -184,11 +222,11 @@ def tiny_schema_panel() -> rx.Component:
                         "Sets the working target / exposure / index for this branch. "
                         "Different branches can use different Tiny Schemas.",
                         font_size="xs",
-                        color="#9CA3AF",
+                        color="#6B7280",
                     ),
                     padding="2",
                     border_radius="4px",
-                    background="#1F2937",
+                    background="#F3F4F6",
                     width="100%",
                 ),
 
@@ -204,12 +242,14 @@ def tiny_schema_panel() -> rx.Component:
                     TinySchemaState.exposure_options,
                     _exposure_badge,
                     required=True,
+                    footer=_tiny_create_control("exposure"),
                 ),
                 _role_badges(
                     "Index",
                     TinySchemaState.index_options,
                     _index_badge,
                     required=True,
+                    footer=_tiny_create_control("index"),
                 ),
 
                 rx.divider(color="#374151"),
@@ -239,7 +279,6 @@ def tiny_schema_panel() -> rx.Component:
                 width="100%",
             ),
             max_width="520px",
-            background="#111827",
         ),
         open=TinySchemaState.is_open,
         on_open_change=TinySchemaState.set_is_open,

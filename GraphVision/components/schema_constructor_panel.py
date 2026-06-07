@@ -145,6 +145,52 @@ _REQUIRED_ROLES: set = {"target", "index"}
 _OPTIONAL_ROLES: set = {"exposure"}
 
 
+def _create_new_control(role: str) -> rx.Component:
+    """"+ Create new" button + dashed indicator for the exposure / index sections.
+
+    Returns an empty fragment for every other role.
+    """
+    if role == "exposure":
+        active = BaseSchemaState.create_exposure
+        name = BaseSchemaState.reserve_exposure_name
+        on_click = BaseSchemaState.create_new_exposure
+        disabled = BaseSchemaState.has_exposure_assigned
+    elif role == "index":
+        active = BaseSchemaState.create_index
+        name = BaseSchemaState.reserve_index_name
+        on_click = BaseSchemaState.create_new_index
+        disabled = False
+    else:
+        return rx.fragment()
+
+    color = _ROLE_COLORS[role]
+    return rx.hstack(
+        rx.button(
+            rx.cond(active, "✕ Remove new column", "+ Create new"),
+            on_click=on_click,
+            size="1",
+            variant="soft",
+            color_scheme=color,
+            disabled=disabled,
+        ),
+        rx.cond(
+            active,
+            rx.badge(
+                name + "  ·  will be created",
+                color_scheme=color,
+                variant="surface",
+                font_family="monospace",
+                font_size="11px",
+                style={"border": "1px dashed currentColor"},
+            ),
+            rx.fragment(),
+        ),
+        spacing="2",
+        align="center",
+        padding_top="2",
+    )
+
+
 def _role_section(role: str) -> rx.Component:
     """One role section: labelled header + all columns as badge pickers."""
     if role in _REQUIRED_ROLES:
@@ -172,6 +218,7 @@ def _role_section(role: str) -> rx.Component:
             gap="1",
             padding_top="2",
         ),
+        _create_new_control(role),
         padding="3",
         border_radius="6px",
         border="1px solid #e5e7eb",

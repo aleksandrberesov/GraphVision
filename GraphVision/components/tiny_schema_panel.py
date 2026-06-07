@@ -10,47 +10,47 @@ import reflex as rx
 from ..models.tiny_schema_state import TinySchemaState
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# ── per-role badge renderers ──────────────────────────────────────────────────
 
-def _role_select(
-    label: str,
-    options: rx.Var,
-    value: rx.Var,
-    on_change,
-    required: bool = True,
-) -> rx.Component:
-    """A labelled dropdown for a single-select role column."""
-    placeholder = "— required —" if required else "— none —"
-    return rx.vstack(
-        rx.hstack(
-            rx.text(label, font_size="xs", font_weight="bold", color="white"),
-            rx.cond(
-                required,
-                rx.text("*", color="#ff6b6b", font_size="xs"),
-                rx.text("optional", color="#9CA3AF", font_size="xs"),
-            ),
-            spacing="1",
-        ),
-        rx.cond(
-            options,
-            rx.select(
-                options,
-                value=value,
-                on_change=on_change,
-                placeholder=placeholder,
-                width="100%",
-                color="#111111",
-                background_color="white",
-            ),
-            rx.text(
-                f"No {label.lower()} columns defined in base schema.",
-                font_size="xs",
-                color="#F87171",
-            ),
-        ),
-        spacing="1",
-        width="100%",
-        align_items="flex_start",
+def _target_badge(col: str) -> rx.Component:
+    is_selected = TinySchemaState.selected_target == col  # type: ignore[operator]
+    return rx.badge(
+        col,
+        on_click=TinySchemaState.set_target(col),
+        cursor="pointer",
+        color_scheme=rx.cond(is_selected, "blue", "gray"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "outline"),   # type: ignore[arg-type]
+        font_size="xs",
+        font_family="monospace",
+        user_select="none",
+    )
+
+
+def _exposure_badge(col: str) -> rx.Component:
+    is_selected = TinySchemaState.selected_exposure == col  # type: ignore[operator]
+    return rx.badge(
+        col,
+        on_click=TinySchemaState.set_exposure(col),
+        cursor="pointer",
+        color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "outline"),    # type: ignore[arg-type]
+        font_size="xs",
+        font_family="monospace",
+        user_select="none",
+    )
+
+
+def _index_badge(col: str) -> rx.Component:
+    is_selected = TinySchemaState.selected_index == col  # type: ignore[operator]
+    return rx.badge(
+        col,
+        on_click=TinySchemaState.set_index(col),
+        cursor="pointer",
+        color_scheme=rx.cond(is_selected, "orange", "gray"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "outline"),     # type: ignore[arg-type]
+        font_size="xs",
+        font_family="monospace",
+        user_select="none",
     )
 
 
@@ -63,6 +63,52 @@ def _feature_badge(col: str) -> rx.Component:
         color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
         variant=rx.cond(is_selected, "solid", "outline"),    # type: ignore[arg-type]
         font_size="xs",
+        font_family="monospace",
+        user_select="none",
+    )
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _role_badges(
+    label: str,
+    options: rx.Var,
+    badge_fn,
+    required: bool = True,
+) -> rx.Component:
+    """A labelled badge-picker for a single-select role column."""
+    return rx.vstack(
+        rx.hstack(
+            rx.text(label, font_size="xs", font_weight="bold", color="white"),
+            rx.cond(
+                required,
+                rx.text("*", color="#ff6b6b", font_size="xs"),
+                rx.text("optional", color="#9CA3AF", font_size="xs"),
+            ),
+            spacing="1",
+        ),
+        rx.cond(
+            options,
+            rx.box(
+                rx.flex(
+                    rx.foreach(options, badge_fn),
+                    flex_wrap="wrap",
+                    gap="1",
+                    width="100%",
+                ),
+                max_height="80px",
+                overflow_y="auto",
+                width="100%",
+            ),
+            rx.text(
+                f"No {label.lower()} columns defined in base schema.",
+                font_size="xs",
+                color="#F87171",
+            ),
+        ),
+        spacing="1",
+        width="100%",
+        align_items="flex_start",
     )
 
 
@@ -146,26 +192,23 @@ def tiny_schema_panel() -> rx.Component:
                     width="100%",
                 ),
 
-                # Role selects
-                _role_select(
+                # Role badge pickers
+                _role_badges(
                     "Target",
                     TinySchemaState.target_options,
-                    TinySchemaState.selected_target,
-                    TinySchemaState.set_target,
+                    _target_badge,
                     required=True,
                 ),
-                _role_select(
+                _role_badges(
                     "Exposure",
                     TinySchemaState.exposure_options,
-                    TinySchemaState.selected_exposure,
-                    TinySchemaState.set_exposure,
+                    _exposure_badge,
                     required=True,
                 ),
-                _role_select(
+                _role_badges(
                     "Index",
                     TinySchemaState.index_options,
-                    TinySchemaState.selected_index,
-                    TinySchemaState.set_index,
+                    _index_badge,
                     required=True,
                 ),
 

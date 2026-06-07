@@ -69,6 +69,13 @@ class BaseSchemaState(rx.State):
     # BASE var (not computed) so rx.foreach local-Var event args serialise correctly.
     column_role_items: List[Dict[str, Any]] = []
 
+    @rx.var
+    def can_apply(self) -> bool:
+        """True only when at least one target and one index column are assigned."""
+        has_target = any(item["role"] == "target" for item in self.column_role_items)
+        has_index = any(item["role"] == "index" for item in self.column_role_items)
+        return has_target and has_index
+
     @rx.event
     def set_constructor_open(self, value: bool):
         self.constructor_open = value

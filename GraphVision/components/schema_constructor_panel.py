@@ -139,14 +139,32 @@ def _make_badge_fn(role: str):
 _BADGE_FNS: dict = {role: _make_badge_fn(role) for role in _ROLES}
 
 
+# Tier-1 roles the user must assign at least one column to before applying.
+_REQUIRED_ROLES: set = {"target", "index"}
+# Tier-1 roles that are optional (no blocking validation).
+_OPTIONAL_ROLES: set = {"exposure"}
+
+
 def _role_section(role: str) -> rx.Component:
     """One role section: labelled header + all columns as badge pickers."""
+    if role in _REQUIRED_ROLES:
+        indicator = rx.text("*", color="#ff6b6b", font_size="12px", line_height="1")
+    elif role in _OPTIONAL_ROLES:
+        indicator = rx.text("optional", color="#9CA3AF", font_size="11px")
+    else:
+        indicator = rx.fragment()
+
     return rx.box(
-        rx.badge(
-            _ROLE_LABELS[role],
-            color_scheme=_ROLE_COLORS[role],
-            size="2",
-            variant="soft",
+        rx.hstack(
+            rx.badge(
+                _ROLE_LABELS[role],
+                color_scheme=_ROLE_COLORS[role],
+                size="2",
+                variant="soft",
+            ),
+            indicator,
+            spacing="1",
+            align="center",
         ),
         rx.flex(
             rx.foreach(BaseSchemaState.column_role_items, _BADGE_FNS[role]),
@@ -202,6 +220,16 @@ def schema_constructor_panel() -> rx.Component:
                     overflow_y="auto",
                     width="100%",
                 ),
+                # Validation hint shown when required roles are unassigned
+                rx.cond(
+                    ~BaseSchemaState.can_apply,  # type: ignore[operator]
+                    rx.text(
+                        "* Assign at least one Target and one Index column to apply.",
+                        size="1",
+                        color="#ff6b6b",
+                    ),
+                    rx.fragment(),
+                ),
                 # Action buttons
                 rx.hstack(
                     rx.button(
@@ -213,6 +241,7 @@ def schema_constructor_panel() -> rx.Component:
                     rx.button(
                         "Apply",
                         on_click=BaseSchemaState.apply_constructor,
+                        disabled=~BaseSchemaState.can_apply,  # type: ignore[operator]
                     ),
                     spacing="3",
                     justify="end",

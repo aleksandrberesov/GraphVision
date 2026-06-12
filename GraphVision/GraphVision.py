@@ -20,7 +20,11 @@ if _hooks_module:
 _accent_color = os.environ.get("GRAPHVISION_ACCENT_COLOR", "green")
 _title = os.environ.get("GRAPHVISION_TITLE", "GraphVision")
 
-app = rx.App(theme=rx.theme(accent_color=_accent_color))  # type: ignore[arg-type]
+# Pin the appearance to light: the whole UI (white panels, dark text, white
+# inputs) is built for light mode. Without this, Radix inherits the OS colour
+# scheme, so on a dark-mode OS dialogs render dark and their text becomes
+# unreadable (see the results/correlation panels).
+app = rx.App(theme=rx.theme(appearance="light", accent_color=_accent_color))  # type: ignore[arg-type]
 
 app.add_page(require_login(main_page), route="/", title=_title, on_load=GraphState.restore_session)
 app.add_page(login_page, route="/login", title="Login")

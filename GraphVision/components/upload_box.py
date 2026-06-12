@@ -209,7 +209,7 @@ def upload_box():
                         "A project named ",
                         rx.text.strong(DialogState.import_conflict_name),
                         " already exists. Enter a new name to import it under:",
-                        color="white",
+                        color="#111827",
                     ),
                     rx.input(
                         value=DialogState.import_rename_value,

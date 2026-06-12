@@ -126,6 +126,46 @@ class ConfigState(rx.State):
             yield MappingBuilderState.open_for_parent(graph_state.selected_node_id)
             return
 
+        if class_name == "GLMMathematicalTransformation":
+            from .math_builder_state import MathBuilderState
+            yield MathBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
+        if class_name in ("GLMDateTransformation", "GLMColumnRemoverTransformation"):
+            from .column_picker_state import ColumnPickerState
+            yield ColumnPickerState.open_for_parent(graph_state.selected_node_id, class_name)
+            return
+
+        if class_name == "GLMDateDifferenceTransformation":
+            from .date_difference_builder_state import DateDifferenceBuilderState
+            yield DateDifferenceBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
+        if class_name == "GLMFeaturePairTransformation":
+            from .feature_pair_builder_state import FeaturePairBuilderState
+            yield FeaturePairBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
+        if class_name == "GLMCyclicTransformation":
+            from .cyclic_builder_state import CyclicBuilderState
+            yield CyclicBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
+        if class_name == "GLMBinningTransformation":
+            from .binning_builder_state import BinningBuilderState
+            yield BinningBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
+        if class_name == "GLMTargetTransformation":
+            from .target_builder_state import TargetBuilderState
+            yield TargetBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
+        if class_name == "GLMNumericToCategoricalTransformation":
+            from .numeric_to_categorical_builder_state import NumericToCategoricalBuilderState
+            yield NumericToCategoricalBuilderState.open_for_parent(graph_state.selected_node_id)
+            return
+
         from . import pipeline_hooks
         from .busy_state import BusyState
 
@@ -281,6 +321,54 @@ class ConfigState(rx.State):
                 yield MappingBuilderState.open_edit_dialog(vertex_id, existing_config)
                 return
 
+            if class_name == "GLMMathematicalTransformation":
+                from .math_builder_state import MathBuilderState
+                yield BusyState.hide()
+                yield MathBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
+            if class_name in ("GLMDateTransformation", "GLMColumnRemoverTransformation"):
+                from .column_picker_state import ColumnPickerState
+                yield BusyState.hide()
+                yield ColumnPickerState.open_edit_dialog(vertex_id, class_name, existing_config)
+                return
+
+            if class_name == "GLMDateDifferenceTransformation":
+                from .date_difference_builder_state import DateDifferenceBuilderState
+                yield BusyState.hide()
+                yield DateDifferenceBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
+            if class_name == "GLMFeaturePairTransformation":
+                from .feature_pair_builder_state import FeaturePairBuilderState
+                yield BusyState.hide()
+                yield FeaturePairBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
+            if class_name == "GLMCyclicTransformation":
+                from .cyclic_builder_state import CyclicBuilderState
+                yield BusyState.hide()
+                yield CyclicBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
+            if class_name == "GLMBinningTransformation":
+                from .binning_builder_state import BinningBuilderState
+                yield BusyState.hide()
+                yield BinningBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
+            if class_name == "GLMTargetTransformation":
+                from .target_builder_state import TargetBuilderState
+                yield BusyState.hide()
+                yield TargetBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
+            if class_name == "GLMNumericToCategoricalTransformation":
+                from .numeric_to_categorical_builder_state import NumericToCategoricalBuilderState
+                yield BusyState.hide()
+                yield NumericToCategoricalBuilderState.open_edit_dialog(vertex_id, existing_config)
+                return
+
             self.selected_class = class_name
 
             schema = pipeline_hooks.describe_transformer(class_name)
@@ -378,6 +466,86 @@ class ConfigState(rx.State):
             parent_id = graph_state.selected_node_id
             self.is_open = False
             yield MappingBuilderState.open_for_parent(parent_id)
+            return
+
+        if class_name == "GLMMathematicalTransformation":
+            from .graph import GraphState
+            from .math_builder_state import MathBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield MathBuilderState.open_for_parent(parent_id)
+            return
+
+        if class_name in ("GLMDateTransformation", "GLMColumnRemoverTransformation"):
+            from .graph import GraphState
+            from .column_picker_state import ColumnPickerState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield ColumnPickerState.open_for_parent(parent_id, class_name)
+            return
+
+        if class_name == "GLMDateDifferenceTransformation":
+            from .graph import GraphState
+            from .date_difference_builder_state import DateDifferenceBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield DateDifferenceBuilderState.open_for_parent(parent_id)
+            return
+
+        if class_name == "GLMFeaturePairTransformation":
+            from .graph import GraphState
+            from .feature_pair_builder_state import FeaturePairBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield FeaturePairBuilderState.open_for_parent(parent_id)
+            return
+
+        if class_name == "GLMCyclicTransformation":
+            from .graph import GraphState
+            from .cyclic_builder_state import CyclicBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield CyclicBuilderState.open_for_parent(parent_id)
+            return
+
+        if class_name == "GLMBinningTransformation":
+            from .graph import GraphState
+            from .binning_builder_state import BinningBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield BinningBuilderState.open_for_parent(parent_id)
+            return
+
+        if class_name == "GLMTargetTransformation":
+            from .graph import GraphState
+            from .target_builder_state import TargetBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield TargetBuilderState.open_for_parent(parent_id)
+            return
+
+        if class_name == "GLMNumericToCategoricalTransformation":
+            from .graph import GraphState
+            from .numeric_to_categorical_builder_state import NumericToCategoricalBuilderState
+
+            graph_state = await self.get_state(GraphState)
+            parent_id = graph_state.selected_node_id
+            self.is_open = False
+            yield NumericToCategoricalBuilderState.open_for_parent(parent_id)
             return
 
         from . import pipeline_hooks

@@ -27,7 +27,7 @@ def _build_model_summary_html(summary: Dict[str, Any]) -> str:
     ]
     rows_html = "".join(
         f"<tr><td style='{td};color:#6b7280'>{label}</td>"
-        f"<td style='{td};text-align:right;font-weight:500'>{value}</td></tr>"
+        f"<td style='{td};text-align:right;font-weight:500;color:#111827'>{value}</td></tr>"
         for label, value in rows
     )
     return (
@@ -42,7 +42,7 @@ def _build_coefficients_html(coefficients: List[Dict[str, Any]]) -> str:
         return ""
     th = "padding:4px 8px;font-size:10px;color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:right"
     th_l = th.replace("text-align:right", "text-align:left")
-    td = "padding:3px 8px;font-size:10px;text-align:right"
+    td = "padding:3px 8px;font-size:10px;text-align:right;color:#111827"
     td_l = td.replace("text-align:right", "text-align:left")
 
     header = (
@@ -55,7 +55,7 @@ def _build_coefficients_html(coefficients: List[Dict[str, Any]]) -> str:
     rows_html = ""
     for row in coefficients:
         pval = row.get("p_value", 1.0)
-        pval_color = "#ef4444" if float(pval) > 0.05 else "inherit"
+        pval_color = "#ef4444" if float(pval) > 0.05 else "#111827"
         rows_html += (
             f"<tr>"
             f"<td style='{td_l}'>{row.get('name', '')}</td>"
@@ -108,7 +108,7 @@ def _build_stability_html(stability: Dict[str, Any]) -> str:
     if not stability:
         return ""
     expected_rank = stability.get("expected_rank")
-    td = "padding:3px 8px;font-size:10px"
+    td = "padding:3px 8px;font-size:10px;color:#111827"
     rows_html = ""
     for key, label, tooltip in _STABILITY_META:
         val = stability.get(key)
@@ -120,7 +120,7 @@ def _build_stability_html(stability: Dict[str, Any]) -> str:
                 val_str = f"{val_str} / {expected_rank}"
                 color = "#ef4444"
             else:
-                color = "inherit"
+                color = "#111827"
         else:
             val_str = f"{float(val):.4g}"
             if key == "condition_number" and float(val) > 1000:
@@ -128,7 +128,7 @@ def _build_stability_html(stability: Dict[str, Any]) -> str:
             elif key == "vif_max" and float(val) > 10:
                 color = "#f97316"
             else:
-                color = "inherit"
+                color = "#111827"
         rows_html += (
             f"<tr>"
             f"<td style='{td}' title='{tooltip}'>{label}</td>"
@@ -138,11 +138,11 @@ def _build_stability_html(stability: Dict[str, Any]) -> str:
     if not rows_html:
         return ""
     return (
-        "<div style='margin-top:12px'>"
+        "<div style='margin-top:12px;background:#f9fafb;border:1px solid #e5e7eb;"
+        "border-radius:4px;padding:8px'>"
         "<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>"
         "Matrix stability (Pearson)</div>"
-        "<table style='border-collapse:collapse;width:100%;background:#f9fafb;"
-        "border-radius:4px;border:1px solid #e5e7eb'>"
+        "<table style='border-collapse:collapse;width:100%;background:#f9fafb;'>"
         f"<thead><tr>"
         f"<th style='{td};color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:left'>Metric</th>"
         f"<th style='{td};color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:right'>Value</th>"
@@ -531,9 +531,9 @@ class PlotState(rx.State):
         self.corr_stability_html = _build_stability_html(stability)
 
         cols = list(matrix.keys())
-        cell_style = "width:48px;height:36px;text-align:center;font-size:9px;border:1px solid #e2e8f0"
-        hdr_style = "width:48px;font-size:9px;text-align:center;padding:2px"
-        lbl_style = "width:80px;font-size:9px;text-align:right;padding-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+        cell_style = "width:48px;height:36px;text-align:center;font-size:9px;border:1px solid #e2e8f0;color:#0f172a"
+        hdr_style = "width:48px;font-size:9px;text-align:center;padding:2px;color:#111827"
+        lbl_style = "width:80px;font-size:9px;text-align:right;padding-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#111827"
 
         header = "<tr><th style='width:80px'></th>" + "".join(
             f"<th style='{hdr_style}' title='{c}'>{c[:6]}</th>" for c in cols

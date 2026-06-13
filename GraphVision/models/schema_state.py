@@ -16,9 +16,9 @@ _ROLES = [
     "force_categorical",
 ]
 
-# Tier-1 roles are mutually exclusive: a column can hold at most one of these.
-# Exposure additionally requires the column to be numeric and allows only one
-# column to hold it at a time.
+# Tier-1 roles are mutually exclusive *within a column*: a column holds at most
+# one of these. Target / index / exposure are each multi-select across columns.
+# Exposure additionally requires the column to be numeric.
 _TIER1_ROLES: set = {"none", "target", "index", "exposure"}
 
 # Tier-2 flags are independent boolean overrides: any column can carry any
@@ -30,10 +30,10 @@ class BaseSchemaState(rx.State):
     """State for the base-schema constructor dialog.
 
     Two-tier role model (mirrors the notebook MultiTabSelector):
-      Tier-1 (exclusive): none / target / index / exposure
+      Tier-1 (exclusive per column): none / target / index / exposure
         - A column holds exactly one tier-1 role.
-        - Exposure additionally requires is_numeric=True and allows only one
-          column at a time.
+        - Target / index / exposure are each multi-select across columns.
+        - Exposure additionally requires is_numeric=True.
       Tier-2 (independent flags): force_drop / force_numeric / force_datetime / force_categorical
         - Each flag is a boolean independent of the tier-1 role and of each
           other, so a column can be "target" AND "force_categorical" at once.
@@ -107,12 +107,12 @@ class BaseSchemaState(rx.State):
     def toggle_tier1_by_index(self, idx: int, role: str):
         """Toggle a tier-1 role (none / target / index / exposure) for the column at *idx*.
 
-        Tier-1 roles are mutually exclusive: clicking assigns the column to
-        *role*; clicking again (same role) reverts it to "none".  Exposure has
-        two extra constraints enforced server-side:
-          - the column must be numeric (is_numeric guard);
-          - at most one column may hold "exposure" at a time (the previous
-            exposure is automatically cleared when a new one is assigned).
+        Tier-1 roles are exclusive *within a column*: clicking assigns the
+        column to *role*; clicking again (same role) reverts it to "none".
+        Target, index and exposure are each multi-select across columns — the
+        base schema may carry several exposure candidates; the Tiny Schema later
+        picks the single working exposure used as model weights.  Exposure
+        additionally requires the column to be numeric (is_numeric guard).
         """
         if idx < 0 or idx >= len(self.column_role_items):
             return
@@ -121,19 +121,14 @@ class BaseSchemaState(rx.State):
             return
         current = item["role"]
         new_role = "none" if current == role else role
-        # A real exposure assignment supersedes a pending "Create new" exposure
-        # (exposure is single).
+        # Assigning a real exposure supersedes a pending "Create new" synthetic
+        # exposure (only used as a fallback when no real exposure exists).
         if new_role == "exposure":
             self.create_exposure = False
-        new_items = []
-        for i, it in enumerate(self.column_role_items):
-            if i == idx:
-                new_items.append({**it, "role": new_role})
-            elif new_role == "exposure" and it["role"] == "exposure":
-                new_items.append({**it, "role": "none"})
-            else:
-                new_items.append(it)
-        self.column_role_items = new_items
+        self.column_role_items = [
+            {**it, "role": new_role} if i == idx else it
+            for i, it in enumerate(self.column_role_items)
+        ]
 
     @rx.event
     def toggle_tier2_by_index(self, idx: int, flag: str):

@@ -104,7 +104,7 @@ _STABILITY_META: List[tuple] = [
 ]
 
 
-def _build_stability_html(stability: Dict[str, Any]) -> str:
+def _build_stability_html(stability: Dict[str, Any], method: str = "pearson") -> str:
     if not stability:
         return ""
     expected_rank = stability.get("expected_rank")
@@ -141,7 +141,7 @@ def _build_stability_html(stability: Dict[str, Any]) -> str:
         "<div style='margin-top:12px;background:#f9fafb;border:1px solid #e5e7eb;"
         "border-radius:4px;padding:8px'>"
         "<div style='font-size:11px;font-weight:600;color:#374151;margin-bottom:4px'>"
-        "Matrix stability (Pearson)</div>"
+        f"Matrix stability ({method.capitalize()})</div>"
         "<table style='border-collapse:collapse;width:100%;background:#f9fafb;'>"
         f"<thead><tr>"
         f"<th style='{td};color:#6b7280;border-bottom:1px solid #e5e7eb;text-align:left'>Metric</th>"
@@ -183,6 +183,7 @@ class PlotState(rx.State):
     mv_warning: str = ""
     corr_html: str = ""
     corr_stability_html: str = ""
+    corr_method: str = "pearson"
     # Phase 6 — model analytics
     is_model_node: bool = False
     model_summary_html: str = ""
@@ -245,6 +246,7 @@ class PlotState(rx.State):
         self.mv_warning = ""
         self.corr_html = ""
         self.corr_stability_html = ""
+        self.corr_method = "pearson"
         # Reset model-analytics state
         self.is_model_node = False
         self.model_summary_html = ""
@@ -321,6 +323,20 @@ class PlotState(rx.State):
         filter_state = await self.get_state(FilterState)
         filter_spec = filter_state.active_filter_spec
         self._load_distribution(session_id, self.current_node_id, self.selected_column, filter_spec)
+        self._load_correlation(session_id, self.current_node_id, filter_spec)
+
+    @rx.event
+    async def set_corr_method(self, method: str):
+        """Switch the correlation method (pearson / spearman / kendall) and reload the matrix."""
+        from .auth_state import AuthState
+        from .filter_state import FilterState
+        from .graph import GraphState
+        self.corr_method = method
+        if not self.current_node_id:
+            return
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
+        filter_spec = (await self.get_state(FilterState)).active_filter_spec
         self._load_correlation(session_id, self.current_node_id, filter_spec)
 
     @rx.event
@@ -513,7 +529,7 @@ class PlotState(rx.State):
         from . import pipeline_hooks
 
         result = pipeline_hooks.compute_correlation(
-            session_id, node_id, "pearson", row_filter=filter_spec or None
+            session_id, node_id, self.corr_method, row_filter=filter_spec or None
         )
         if not result:
             self.corr_html = ""
@@ -528,7 +544,7 @@ class PlotState(rx.State):
             matrix = result
             stability = {}
 
-        self.corr_stability_html = _build_stability_html(stability)
+        self.corr_stability_html = _build_stability_html(stability, self.corr_method)
 
         cols = list(matrix.keys())
         cell_style = "width:48px;height:36px;text-align:center;font-size:9px;border:1px solid #e2e8f0;color:#0f172a"

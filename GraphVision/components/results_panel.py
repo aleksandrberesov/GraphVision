@@ -247,23 +247,39 @@ def _distribution_tab() -> rx.Component:
 
 
 def _correlation_tab() -> rx.Component:
-    return rx.cond(
-        PlotState.corr_html != "",
-        rx.vstack(
-            rx.html(PlotState.corr_html),
-            rx.cond(
-                PlotState.corr_stability_html != "",
-                rx.html(PlotState.corr_stability_html),
+    return rx.vstack(
+        rx.hstack(
+            rx.text("Method:", font_size="sm", color="#111827"),
+            rx.select(
+                ["pearson", "spearman", "kendall"],
+                value=PlotState.corr_method,
+                on_change=PlotState.set_corr_method,
+                size="1",
+                width="140px",
             ),
-            width="100%",
-            spacing="1",
+            align_items="center",
+            spacing="2",
         ),
-        rx.text(
-            "No correlation data — select a manifested node.",
-            color="gray",
-            font_size="sm",
-            font_style="italic",
+        rx.cond(
+            PlotState.corr_html != "",
+            rx.vstack(
+                rx.html(PlotState.corr_html),
+                rx.cond(
+                    PlotState.corr_stability_html != "",
+                    rx.html(PlotState.corr_stability_html),
+                ),
+                width="100%",
+                spacing="1",
+            ),
+            rx.text(
+                "No correlation data — select a manifested node.",
+                color="gray",
+                font_size="sm",
+                font_style="italic",
+            ),
         ),
+        width="100%",
+        spacing="2",
     )
 
 

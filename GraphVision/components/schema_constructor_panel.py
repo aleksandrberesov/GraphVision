@@ -11,8 +11,9 @@ Two-tier role model (mirrors the notebook MultiTabSelector):
     Exposure extras:
       • Only numeric columns are selectable — non-numeric badges are dimmed
         and have pointer-events disabled so they cannot be clicked.
-      • At most one column may hold the exposure role at a time; assigning a
-        new one automatically clears the previous exposure (server-side).
+      • Multi-select: several columns may hold the exposure role (the base
+        schema's exposure pool). The Tiny Schema later picks the one working
+        exposure used as model weights.
 
   Tier-2 — independent flags (force_drop / force_numeric / force_datetime / force_categorical)
     Each flag is a boolean independent of the tier-1 role and of every other
@@ -36,7 +37,7 @@ from ..models.schema_state import BaseSchemaState, _ROLES, _TIER1_ROLES, _TIER2_
 _ROLE_LABELS: dict = {
     "none":              "Feature (auto-type)",
     "target":            "Target",
-    "exposure":          "Exposure  ·  numeric only, max 1",
+    "exposure":          "Exposure  ·  numeric only",
     "index":             "Index",
     "force_drop":        "Drop",
     "force_numeric":     "Force numeric",

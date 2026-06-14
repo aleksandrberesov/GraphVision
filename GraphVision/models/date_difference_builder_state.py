@@ -30,17 +30,19 @@ class DateDifferenceBuilderState(rx.State):
 
     available_columns: List[str] = []
 
-    # Current selection
-    diff_type: str = "days"
-    from_col: str = ""
-    to_col: str = ""
+    # Current selection (multi-select, mirroring the notebook)
+    use_days: bool = False
+    use_months: bool = False
+    use_years: bool = False
+    from_cols: List[str] = []
+    to_cols: List[str] = []
+    # TO can be column(s) *or* a fixed date string (e.g. "2025-01"); the backend
+    # treats config["to"] as a fixed date when it isn't one of the columns.
+    to_is_fixed: bool = False
+    to_fixed_value: str = ""
 
-    # Accumulated: {config_name: JSON string of {"from","to","features"}}
+    # Accumulated: {config_name: JSON string of {"from","to","features","to_fixed"}}
     entries: Dict[str, str] = {}
-
-    @rx.var
-    def diff_types(self) -> List[str]:
-        return _DIFF_TYPES
 
     @rx.var
     def can_submit(self) -> bool:
@@ -54,9 +56,12 @@ class DateDifferenceBuilderState(rx.State):
                 cfg = json.loads(cfg_json)
             except (ValueError, TypeError):
                 cfg = {}
+            to_label = f"{cfg.get('to', '?')}"
+            if cfg.get("to_fixed"):
+                to_label += " (fixed)"
             rows.append({
                 "name": name,
-                "label": f"{cfg.get('from', '?')} → {cfg.get('to', '?')}",
+                "label": f"{cfg.get('from', '?')} → {to_label}",
                 "features": ", ".join(cfg.get("features", [])),
             })
         return rows
@@ -81,9 +86,13 @@ class DateDifferenceBuilderState(rx.State):
         return cols
 
     def _reset_current(self):
-        self.diff_type = "days"
-        self.from_col = ""
-        self.to_col = ""
+        self.use_days = False
+        self.use_months = False
+        self.use_years = False
+        self.from_cols = []
+        self.to_cols = []
+        self.to_is_fixed = False
+        self.to_fixed_value = ""
 
     @rx.event
     async def open_for_parent(self, parent_vertex_id: str):
@@ -117,9 +126,16 @@ class DateDifferenceBuilderState(rx.State):
 
         existing: Dict[str, Dict[str, Any]] = existing_config.get("differences", {})
 
+        # Reconstruct the to_fixed flag: a `to` that isn't a column is a fixed date.
+        entries: Dict[str, str] = {}
+        for name, cfg in existing.items():
+            cfg = dict(cfg)
+            cfg["to_fixed"] = cfg.get("to") not in cols
+            entries[name] = json.dumps(cfg)
+
         self.parent_vertex_id = parent_id
         self.available_columns = cols
-        self.entries = {name: json.dumps(cfg) for name, cfg in existing.items()}
+        self.entries = entries
         self._reset_current()
         self.is_edit_mode = True
         self.vertex_id_editing = vertex_id
@@ -138,41 +154,89 @@ class DateDifferenceBuilderState(rx.State):
     # ------------------------------------------------------------------ #
 
     @rx.event
-    def set_diff_type(self, value: str):
-        self.diff_type = value
+    def set_use_days(self, value: bool):
+        self.use_days = value
 
     @rx.event
-    def set_from_col(self, value: str):
-        self.from_col = value
+    def set_use_months(self, value: bool):
+        self.use_months = value
 
     @rx.event
-    def set_to_col(self, value: str):
-        self.to_col = value
+    def set_use_years(self, value: bool):
+        self.use_years = value
+
+    @rx.event
+    def toggle_from(self, col: str):
+        if col in self.from_cols:
+            self.from_cols = [c for c in self.from_cols if c != col]
+        else:
+            self.from_cols = self.from_cols + [col]
+
+    @rx.event
+    def toggle_to(self, col: str):
+        if col in self.to_cols:
+            self.to_cols = [c for c in self.to_cols if c != col]
+        else:
+            self.to_cols = self.to_cols + [col]
+
+    @rx.event
+    def set_to_is_fixed(self, value: bool):
+        self.to_is_fixed = value
+
+    @rx.event
+    def set_to_fixed_value(self, value: str):
+        self.to_fixed_value = value
 
     @rx.event
     def add_current(self):
-        if not self.from_col or not self.to_col:
-            yield rx.toast.error("Pick both a From and a To column.")
+        types = [
+            t for t, on in (("days", self.use_days), ("months", self.use_months), ("years", self.use_years))
+            if on
+        ]
+        if not types:
+            yield rx.toast.error("Tick at least one difference type.")
             return
-        if self.from_col == self.to_col:
-            yield rx.toast.error("From and To must be different columns.")
+        if not self.from_cols:
+            yield rx.toast.error("Pick at least one From column.")
             return
 
-        name = f"{self.from_col}__to__{self.to_col}"
-        new_entries = dict(self.entries)
-        if name in new_entries:
-            try:
-                cfg = json.loads(new_entries[name])
-            except (ValueError, TypeError):
-                cfg = {"from": self.from_col, "to": self.to_col, "features": []}
+        if self.to_is_fixed:
+            fixed = self.to_fixed_value.strip()
+            if not fixed:
+                yield rx.toast.error("Enter a fixed date for To (e.g. 2025-01).")
+                return
+            to_targets = [(fixed, True)]
         else:
-            cfg = {"from": self.from_col, "to": self.to_col, "features": []}
+            if not self.to_cols:
+                yield rx.toast.error("Pick at least one To column or switch To to a fixed date.")
+                return
+            to_targets = [(c, False) for c in self.to_cols]
 
-        feats = cfg.get("features", [])
-        if self.diff_type not in feats:
-            feats.append(self.diff_type)
-        cfg["features"] = feats
-        new_entries[name] = json.dumps(cfg)
+        new_entries = dict(self.entries)
+        added = False
+        for from_col in self.from_cols:
+            for to_value, to_fixed in to_targets:
+                if not to_fixed and from_col == to_value:
+                    continue  # skip self-difference
+                name = f"{from_col}__to__{to_value}"
+                if name in new_entries:
+                    try:
+                        cfg = json.loads(new_entries[name])
+                    except (ValueError, TypeError):
+                        cfg = {"from": from_col, "to": to_value, "features": [], "to_fixed": to_fixed}
+                else:
+                    cfg = {"from": from_col, "to": to_value, "features": [], "to_fixed": to_fixed}
+                feats = cfg.get("features", [])
+                for t in types:
+                    if t not in feats:
+                        feats.append(t)
+                cfg["features"] = feats
+                new_entries[name] = json.dumps(cfg)
+                added = True
+
+        if not added:
+            yield rx.toast.error("Nothing added — From and To overlap.")
+            return
         self.entries = new_entries
         self._reset_current()
 
@@ -201,11 +265,15 @@ class DateDifferenceBuilderState(rx.State):
                 cfg = json.loads(cfg_json)
             except (ValueError, TypeError):
                 continue
+            to_fixed = bool(cfg.pop("to_fixed", False))  # internal flag — not for the backend
             differences[name] = cfg
-            for key in ("from", "to"):
-                col = cfg.get(key)
-                if col and col not in used_cols:
-                    used_cols.append(col)
+            from_col = cfg.get("from")
+            if from_col and from_col not in used_cols:
+                used_cols.append(from_col)
+            # A fixed-date `to` is not a column, so it must not enter features_to_transform.
+            to_col = cfg.get("to")
+            if not to_fixed and to_col and to_col not in used_cols:
+                used_cols.append(to_col)
 
         config: Dict[str, Any] = {
             "features_to_transform": used_cols,

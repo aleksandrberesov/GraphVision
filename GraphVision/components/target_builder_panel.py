@@ -29,6 +29,16 @@ def _agg_badge(agg: str) -> rx.Component:
     )
 
 
+def _task_row(row: dict) -> rx.Component:
+    return rx.hstack(
+        rx.text(row["label"], flex="1", color="#374151", font_size="xs",
+                overflow="hidden", text_overflow="ellipsis", white_space="nowrap"),
+        rx.icon("x", size=14, color="#F87171", cursor="pointer",
+                on_click=S.remove_task(row["idx"].to(int))),  # type: ignore[attr-defined]
+        width="100%", align="center", spacing="2",
+    )
+
+
 def target_builder_panel() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
@@ -73,10 +83,43 @@ def target_builder_panel() -> rx.Component:
                     ),
                     spacing="2", align="center",
                 ),
+
+                # ── accumulate (add-mode only): each task → its own chained node ──
+                rx.cond(
+                    ~S.is_edit_mode,  # type: ignore[operator]
+                    rx.vstack(
+                        rx.button(
+                            rx.hstack(rx.icon("plus", size=14), rx.text("Add task"), spacing="1", align="center"),
+                            on_click=S.add_task, size="2", variant="soft", color_scheme="blue",
+                        ),
+                        rx.cond(
+                            S.tasks,
+                            rx.vstack(
+                                rx.hstack(
+                                    rx.text("Tasks (one node each):", font_size="xs",
+                                            font_weight="bold", color="#111827"),
+                                    rx.spacer(),
+                                    rx.button("Clear all", on_click=S.clear_tasks, size="1",
+                                              variant="ghost", color_scheme="red"),
+                                    width="100%", align="center",
+                                ),
+                                rx.box(
+                                    rx.vstack(rx.foreach(S.task_rows, _task_row), spacing="1", width="100%"),
+                                    max_height="140px", overflow_y="auto", width="100%",
+                                ),
+                                spacing="1", width="100%", align_items="flex_start",
+                            ),
+                            rx.fragment(),
+                        ),
+                        spacing="2", width="100%", align_items="flex_start",
+                    ),
+                    rx.fragment(),
+                ),
+
                 rx.divider(color="#E5E7EB"),
                 rx.hstack(
                     rx.button("Cancel", on_click=S.close, variant="outline", color_scheme="gray"),
-                    rx.button(rx.cond(S.is_edit_mode, "Save", "Add"), on_click=S.submit,
+                    rx.button(rx.cond(S.is_edit_mode, "Save", "Apply"), on_click=S.submit,
                               disabled=~S.can_submit, color_scheme="blue"),  # type: ignore[operator]
                     spacing="3", justify="end", width="100%",
                 ),

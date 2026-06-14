@@ -106,6 +106,29 @@ class NumericToCategoricalBuilderState(rx.State):
             self.unordered_features = self.unordered_features + [col]
 
     @rx.event
+    def select_all_ordered(self):
+        # Every column not locked by the unordered group goes to ordered.
+        self.ordered_features = [
+            c for c in self.available_columns if c not in self.unordered_features
+        ]
+
+    @rx.event
+    def invert_ordered(self):
+        avail = [c for c in self.available_columns if c not in self.unordered_features]
+        self.ordered_features = [c for c in avail if c not in self.ordered_features]
+
+    @rx.event
+    def select_all_unordered(self):
+        self.unordered_features = [
+            c for c in self.available_columns if c not in self.ordered_features
+        ]
+
+    @rx.event
+    def invert_unordered(self):
+        avail = [c for c in self.available_columns if c not in self.ordered_features]
+        self.unordered_features = [c for c in avail if c not in self.unordered_features]
+
+    @rx.event
     def clear_groups(self):
         self.ordered_features = []
         self.unordered_features = []

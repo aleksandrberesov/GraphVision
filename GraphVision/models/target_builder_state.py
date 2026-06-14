@@ -32,13 +32,37 @@ class TargetBuilderState(rx.State):
     selected_aggs: List[str] = []
     target_col: str = ""
 
+    # Accumulated tasks (add-mode only): each is a JSON target-encoding config.
+    # On Apply, one chained Target node is created per task (the backend wrapper
+    # is one flat config, so heterogeneous tasks = multiple nodes).
+    tasks: List[str] = []
+
     @rx.var
     def aggregation_choices(self) -> List[str]:
         return _AGGREGATIONS
 
     @rx.var
-    def can_submit(self) -> bool:
+    def current_complete(self) -> bool:
         return bool(self.selected_features) and bool(self.selected_aggs) and bool(self.target_col)
+
+    @rx.var
+    def can_submit(self) -> bool:
+        return bool(self.tasks) or self.current_complete
+
+    @rx.var
+    def task_rows(self) -> List[Dict[str, str]]:
+        import json
+        rows: List[Dict[str, str]] = []
+        for i, t in enumerate(self.tasks):
+            try:
+                cfg = json.loads(t)
+            except (ValueError, TypeError):
+                cfg = {}
+            feats = ", ".join(cfg.get("features_to_encode", []))
+            aggs = ", ".join(cfg.get("aggregations", []))
+            tgt = ", ".join(cfg.get("target_columns", []))
+            rows.append({"idx": str(i), "label": f"[{feats}] · {aggs} → {tgt}"})
+        return rows
 
     async def _load_columns(self, parent_vertex_id: str):
         from . import pipeline_hooks
@@ -76,6 +100,7 @@ class TargetBuilderState(rx.State):
         self.selected_features = []
         self.selected_aggs = []
         self.target_col = ""
+        self.tasks = []
         self.is_edit_mode = False
         self.vertex_id_editing = ""
         self.is_open = True
@@ -102,6 +127,7 @@ class TargetBuilderState(rx.State):
         self.selected_features = list(existing_config.get("features_to_encode", []) or [])
         self.selected_aggs = list(existing_config.get("aggregations", []) or [])
         self.target_col = targets[0] if targets else ""
+        self.tasks = []  # accumulate is add-mode only
         self.is_edit_mode = True
         self.vertex_id_editing = vertex_id
         self.is_open = True
@@ -132,39 +158,70 @@ class TargetBuilderState(rx.State):
     def set_target_col(self, value: str):
         self.target_col = value
 
-    @rx.event
-    async def submit(self):
-        if not self.selected_features:
-            yield rx.toast.error("Select at least one categorical feature.")
-            return
-        if not self.selected_aggs:
-            yield rx.toast.error("Select at least one aggregation.")
-            return
-        if not self.target_col:
-            yield rx.toast.error("Pick a target column.")
-            return
-
-        config: Dict[str, Any] = {
+    def _current_config(self) -> Dict[str, Any]:
+        return {
             "features_to_encode": list(self.selected_features),
             "aggregations": list(self.selected_aggs),
             "target_columns": [self.target_col],
         }
 
+    @rx.event
+    def add_task(self):
+        import json
+        if not self.current_complete:
+            yield rx.toast.error("Pick feature(s), aggregation(s) and a target first.")
+            return
+        self.tasks = self.tasks + [json.dumps(self._current_config())]
+        self.selected_features = []
+        self.selected_aggs = []
+        self.target_col = ""
+
+    @rx.event
+    def remove_task(self, idx: int):
+        self.tasks = [t for i, t in enumerate(self.tasks) if i != idx]
+
+    @rx.event
+    def clear_tasks(self):
+        self.tasks = []
+
+    @rx.event
+    async def submit(self):
+        import json
         from .graph import GraphState
         graph_state = await self.get_state(GraphState)
-        self.is_open = False
 
+        # Edit mode is always single-config — update the existing node.
         if self.is_edit_mode:
+            if not self.current_complete:
+                yield rx.toast.error("Pick feature(s), aggregation(s) and a target.")
+                return
             from .auth_state import AuthState
             from . import pipeline_hooks
             session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
+            self.is_open = False
             pipeline_hooks.update_transformation_config(
-                session_id, self.vertex_id_editing, "GLMTargetTransformation", config
+                session_id, self.vertex_id_editing, "GLMTargetTransformation", self._current_config()
             )
             self.is_edit_mode = False
             self.vertex_id_editing = ""
             yield GraphState.refresh_statuses_from_pipeline()
-        else:
-            if self.parent_vertex_id:
-                yield graph_state._select_node(self.parent_vertex_id)
-            yield GraphState.add_transformation_node("GLMTargetTransformation", config)
+            return
+
+        # Add mode: accumulated tasks + the current selection (if complete).
+        configs: List[Dict[str, Any]] = []
+        for t in self.tasks:
+            try:
+                configs.append(json.loads(t))
+            except (ValueError, TypeError):
+                continue
+        if self.current_complete:
+            configs.append(self._current_config())
+        if not configs:
+            yield rx.toast.error("Add at least one encoding task.")
+            return
+
+        self.is_open = False
+        if self.parent_vertex_id:
+            yield graph_state._select_node(self.parent_vertex_id)
+        for cfg in configs:
+            yield GraphState.add_transformation_node("GLMTargetTransformation", cfg)

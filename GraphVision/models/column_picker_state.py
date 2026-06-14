@@ -39,6 +39,9 @@ class ColumnPickerState(rx.State):
     available_columns: List[str] = []
     selected_columns: List[str] = []
 
+    # ColumnRemover only: multicollinearity readout for the kept columns.
+    stability_text: str = "—"
+
     # ------------------------------------------------------------------ #
     # Computed                                                             #
     # ------------------------------------------------------------------ #
@@ -108,6 +111,7 @@ class ColumnPickerState(rx.State):
         self.available_columns = cols
         # ColumnRemover starts with everything kept; Date starts empty.
         self.selected_columns = list(cols) if self.mode == "remove_complement" else []
+        self.stability_text = "—"
         self.is_edit_mode = False
         self.vertex_id_editing = ""
         self.is_open = True
@@ -139,6 +143,7 @@ class ColumnPickerState(rx.State):
         else:
             self.selected_columns = list(existing_config.get("date_columns", []) or [])
 
+        self.stability_text = "—"
         self.is_edit_mode = True
         self.vertex_id_editing = vertex_id
         self.is_open = True
@@ -161,14 +166,58 @@ class ColumnPickerState(rx.State):
             self.selected_columns = [c for c in self.selected_columns if c != col]
         else:
             self.selected_columns = self.selected_columns + [col]
+        self.stability_text = "—"  # selection changed — stale until recomputed
 
     @rx.event
     def select_all(self):
         self.selected_columns = list(self.available_columns)
+        self.stability_text = "—"
+
+    @rx.event
+    def invert(self):
+        self.selected_columns = [
+            c for c in self.available_columns if c not in self.selected_columns
+        ]
+        self.stability_text = "—"
 
     @rx.event
     def clear_all(self):
         self.selected_columns = []
+        self.stability_text = "—"
+
+    @rx.event
+    async def recompute_stability(self):
+        """Compute multicollinearity stats for the kept columns (ColumnRemover)."""
+        from .auth_state import AuthState
+        from . import pipeline_hooks
+        from .graph import GraphState
+
+        if not self.parent_vertex_id:
+            return
+        graph_state = await self.get_state(GraphState)
+        session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
+        result = pipeline_hooks.compute_columns_stability(
+            session_id, self.parent_vertex_id, self.selected_columns
+        )
+        if not result:
+            self.stability_text = "—"
+            return
+        n = int(result.get("n_numeric", 0))
+        if n < 2:
+            self.stability_text = f"{n} numeric column(s) — need ≥2."
+            return
+        parts: List[str] = []
+        cond = result.get("condition_number")
+        if cond is not None:
+            parts.append(f"cond={float(cond):.3g}")
+        rank = result.get("rank")
+        exp = result.get("expected_rank")
+        if rank is not None and exp is not None:
+            parts.append(f"rank={int(rank)}/{int(exp)}")
+        vif = result.get("vif_max")
+        if vif is not None:
+            parts.append(f"VIF max={float(vif):.3g}")
+        self.stability_text = "  ·  ".join(parts) if parts else "—"
 
     # ------------------------------------------------------------------ #
     # Submit                                                               #

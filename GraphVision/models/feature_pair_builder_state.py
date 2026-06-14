@@ -29,13 +29,37 @@ class FeaturePairBuilderState(rx.State):
     first_group: List[str] = []
     second_group: List[str] = []
 
+    # Accumulated tasks (add-mode only): each is a JSON {"first_group","second_group"}.
+    # On Apply, one chained FeaturePair node is created per task — the backend
+    # wrapper is a single cartesian product, so multiple group-pairs = multiple nodes.
+    tasks: List[str] = []
+
+    @rx.var
+    def current_complete(self) -> bool:
+        return bool(self.first_group) and bool(self.second_group)
+
     @rx.var
     def can_submit(self) -> bool:
-        return bool(self.first_group) and bool(self.second_group)
+        # Submit if there's at least one accumulated task or a complete current pair.
+        return bool(self.tasks) or self.current_complete
 
     @rx.var
     def pair_count(self) -> int:
         return len(self.first_group) * len(self.second_group)
+
+    @rx.var
+    def task_rows(self) -> List[Dict[str, str]]:
+        rows: List[Dict[str, str]] = []
+        import json
+        for i, t in enumerate(self.tasks):
+            try:
+                cfg = json.loads(t)
+            except (ValueError, TypeError):
+                cfg = {}
+            fg = ", ".join(cfg.get("first_group", []))
+            sg = ", ".join(cfg.get("second_group", []))
+            rows.append({"idx": str(i), "label": f"[{fg}] × [{sg}]"})
+        return rows
 
     # ------------------------------------------------------------------ #
     # Open / close                                                         #
@@ -74,6 +98,7 @@ class FeaturePairBuilderState(rx.State):
         self.available_columns = cols
         self.first_group = []
         self.second_group = []
+        self.tasks = []
         self.is_edit_mode = False
         self.vertex_id_editing = ""
         self.is_open = True
@@ -96,6 +121,7 @@ class FeaturePairBuilderState(rx.State):
         self.available_columns = cols
         self.first_group = list(existing_config.get("first_group", []) or [])
         self.second_group = list(existing_config.get("second_group", []) or [])
+        self.tasks = []  # accumulate is add-mode only
         self.is_edit_mode = True
         self.vertex_id_editing = vertex_id
         self.is_open = True
@@ -136,38 +162,78 @@ class FeaturePairBuilderState(rx.State):
         self.second_group = []
 
     # ------------------------------------------------------------------ #
+    # Accumulate (add-mode only)                                            #
+    # ------------------------------------------------------------------ #
+
+    @rx.event
+    def add_task(self):
+        import json
+        if not self.first_group or not self.second_group:
+            yield rx.toast.error("Both groups need at least one column.")
+            return
+        self.tasks = self.tasks + [json.dumps({
+            "first_group": list(self.first_group),
+            "second_group": list(self.second_group),
+        })]
+        self.first_group = []
+        self.second_group = []
+
+    @rx.event
+    def remove_task(self, idx: int):
+        self.tasks = [t for i, t in enumerate(self.tasks) if i != idx]
+
+    @rx.event
+    def clear_tasks(self):
+        self.tasks = []
+
+    # ------------------------------------------------------------------ #
     # Submit                                                               #
     # ------------------------------------------------------------------ #
 
     @rx.event
     async def submit(self):
-        if not self.first_group or not self.second_group:
-            yield rx.toast.error("Both groups need at least one column.")
-            return
-
-        config: Dict[str, Any] = {
-            "first_group": list(self.first_group),
-            "second_group": list(self.second_group),
-        }
-
+        import json
         from .graph import GraphState
         graph_state = await self.get_state(GraphState)
-        self.is_open = False
 
+        # Edit mode is always single-config — update the existing node.
         if self.is_edit_mode:
+            if not self.first_group or not self.second_group:
+                yield rx.toast.error("Both groups need at least one column.")
+                return
+            config = {"first_group": list(self.first_group), "second_group": list(self.second_group)}
             from .auth_state import AuthState
             from . import pipeline_hooks
             session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
+            self.is_open = False
             pipeline_hooks.update_transformation_config(
-                session_id,
-                self.vertex_id_editing,
-                "GLMFeaturePairTransformation",
-                config,
+                session_id, self.vertex_id_editing, "GLMFeaturePairTransformation", config
             )
             self.is_edit_mode = False
             self.vertex_id_editing = ""
             yield GraphState.refresh_statuses_from_pipeline()
-        else:
-            if self.parent_vertex_id:
-                yield graph_state._select_node(self.parent_vertex_id)
-            yield GraphState.add_transformation_node("GLMFeaturePairTransformation", config)
+            return
+
+        # Add mode: gather accumulated tasks + the current pair (if complete).
+        configs: List[Dict[str, Any]] = []
+        for t in self.tasks:
+            try:
+                configs.append(json.loads(t))
+            except (ValueError, TypeError):
+                continue
+        if self.first_group and self.second_group:
+            configs.append({
+                "first_group": list(self.first_group),
+                "second_group": list(self.second_group),
+            })
+        if not configs:
+            yield rx.toast.error("Add at least one group pair.")
+            return
+
+        self.is_open = False
+        # One chained FeaturePair node per task (add_transformation_node selects the
+        # new node, so each subsequent add chains onto it).
+        if self.parent_vertex_id:
+            yield graph_state._select_node(self.parent_vertex_id)
+        for cfg in configs:
+            yield GraphState.add_transformation_node("GLMFeaturePairTransformation", cfg)

@@ -51,6 +51,13 @@ def column_picker_panel() -> rx.Component:
                         color_scheme="blue",
                     ),
                     rx.button(
+                        "Invert",
+                        on_click=ColumnPickerState.invert,
+                        size="1",
+                        variant="ghost",
+                        color_scheme="blue",
+                    ),
+                    rx.button(
                         "Clear",
                         on_click=ColumnPickerState.clear_all,
                         size="1",
@@ -100,6 +107,31 @@ def column_picker_panel() -> rx.Component:
                         spacing="1",
                         width="100%",
                         align_items="flex_start",
+                    ),
+                    rx.fragment(),
+                ),
+
+                # ColumnRemover: multicollinearity of the kept columns.
+                rx.cond(
+                    ColumnPickerState.mode == "remove_complement",
+                    rx.hstack(
+                        rx.button(
+                            "Recompute stability",
+                            on_click=ColumnPickerState.recompute_stability,
+                            size="1",
+                            variant="soft",
+                            color_scheme="blue",
+                        ),
+                        rx.text("Stability:", font_size="xs", color="#6B7280"),
+                        rx.text(
+                            ColumnPickerState.stability_text,
+                            font_size="xs",
+                            font_weight="bold",
+                            color="#111827",
+                        ),
+                        spacing="2",
+                        align="center",
+                        width="100%",
                     ),
                     rx.fragment(),
                 ),

@@ -38,6 +38,30 @@ def _entry_row(row: Dict[str, str]) -> rx.Component:
     )
 
 
+def _from_badge(col: str) -> rx.Component:
+    is_selected = S.from_cols.contains(col)  # type: ignore[attr-defined]
+    return rx.badge(
+        col,
+        on_click=S.toggle_from(col),
+        cursor="pointer",
+        color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+        font_size="xs",
+    )
+
+
+def _to_badge(col: str) -> rx.Component:
+    is_selected = S.to_cols.contains(col)  # type: ignore[attr-defined]
+    return rx.badge(
+        col,
+        on_click=S.toggle_to(col),
+        cursor="pointer",
+        color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+        font_size="xs",
+    )
+
+
 def date_difference_builder_panel() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
@@ -51,54 +75,58 @@ def date_difference_builder_panel() -> rx.Component:
             ),
             rx.vstack(
                 rx.text(
-                    "Pick a type and From/To columns, then “+ Add”.",
+                    "Tick type(s), pick From and To columns (or a fixed date), then “+ Add”.",
                     font_size="xs",
                     color="#6B7280",
                 ),
 
-                rx.hstack(
-                    rx.vstack(
-                        rx.text("Type", font_size="xs", color="#111827"),
-                        rx.select(
-                            S.diff_types,
-                            value=S.diff_type,
-                            on_change=S.set_diff_type,
-                            color="#111111",
-                            background_color="white",
-                            width="120px",
-                        ),
-                        spacing="1",
+                # ── difference types (multi) ─────────────────────────────
+                rx.vstack(
+                    rx.text("Types", font_size="xs", font_weight="bold", color="#111827"),
+                    rx.flex(
+                        rx.checkbox("days", checked=S.use_days, on_change=S.set_use_days, color_scheme="blue"),
+                        rx.checkbox("months", checked=S.use_months, on_change=S.set_use_months, color_scheme="blue"),
+                        rx.checkbox("years", checked=S.use_years, on_change=S.set_use_years, color_scheme="blue"),
+                        gap="3", flex_wrap="wrap", width="100%",
                     ),
-                    rx.vstack(
-                        rx.text("From", font_size="xs", color="#111827"),
-                        rx.select(
-                            S.available_columns,
-                            value=S.from_col,
-                            on_change=S.set_from_col,
-                            placeholder="column…",
+                    spacing="1", width="100%", align_items="flex_start",
+                ),
+
+                # ── FROM columns (multi) ─────────────────────────────────
+                rx.vstack(
+                    rx.text("From", font_size="xs", font_weight="bold", color="#111827"),
+                    rx.flex(rx.foreach(S.available_columns, _from_badge),
+                            flex_wrap="wrap", gap="1", width="100%"),
+                    spacing="1", width="100%", align_items="flex_start",
+                ),
+
+                # ── TO columns (multi) or a fixed date ───────────────────
+                rx.vstack(
+                    rx.hstack(
+                        rx.text("To", font_size="xs", font_weight="bold", color="#111827"),
+                        rx.checkbox(
+                            "fixed date",
+                            checked=S.to_is_fixed,
+                            on_change=S.set_to_is_fixed,
+                            size="1",
+                            color_scheme="blue",
+                        ),
+                        spacing="2", align="center",
+                    ),
+                    rx.cond(
+                        S.to_is_fixed,
+                        rx.input(
+                            value=S.to_fixed_value,
+                            on_change=S.set_to_fixed_value,
+                            placeholder="2025-01",
                             color="#111111",
                             background_color="white",
                             width="180px",
                         ),
-                        spacing="1",
+                        rx.flex(rx.foreach(S.available_columns, _to_badge),
+                                flex_wrap="wrap", gap="1", width="100%"),
                     ),
-                    rx.vstack(
-                        rx.text("To", font_size="xs", color="#111827"),
-                        rx.select(
-                            S.available_columns,
-                            value=S.to_col,
-                            on_change=S.set_to_col,
-                            placeholder="column…",
-                            color="#111111",
-                            background_color="white",
-                            width="180px",
-                        ),
-                        spacing="1",
-                    ),
-                    spacing="3",
-                    align="end",
-                    width="100%",
-                    flex_wrap="wrap",
+                    spacing="1", width="100%", align_items="flex_start",
                 ),
 
                 rx.button(

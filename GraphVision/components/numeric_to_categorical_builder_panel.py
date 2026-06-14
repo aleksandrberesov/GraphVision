@@ -37,12 +37,15 @@ def _unordered_badge(col: str) -> rx.Component:
     )
 
 
-def _group_row(label: str, hint: str, badge_fn) -> rx.Component:
+def _group_row(label: str, hint: str, badge_fn, on_all, on_invert) -> rx.Component:
     return rx.vstack(
         rx.hstack(
             rx.text(label, font_size="xs", font_weight="bold", color="#111827"),
             rx.text(hint, font_size="xs", color="#9CA3AF"),
-            spacing="2", align="center",
+            rx.spacer(),
+            rx.button("All", on_click=on_all, size="1", variant="ghost", color_scheme="blue"),
+            rx.button("Invert", on_click=on_invert, size="1", variant="ghost", color_scheme="blue"),
+            spacing="2", align="center", width="100%",
         ),
         rx.flex(
             rx.foreach(S.available_columns, badge_fn),
@@ -71,9 +74,15 @@ def numeric_to_categorical_builder_panel() -> rx.Component:
                 rx.cond(
                     S.available_columns,
                     rx.vstack(
-                        _group_row("Ordered", "(ranked categories)", _ordered_badge),
+                        _group_row(
+                            "Ordered", "(ranked categories)", _ordered_badge,
+                            S.select_all_ordered, S.invert_ordered,
+                        ),
                         rx.divider(color="#E5E7EB"),
-                        _group_row("Unordered", "(nominal categories)", _unordered_badge),
+                        _group_row(
+                            "Unordered", "(nominal categories)", _unordered_badge,
+                            S.select_all_unordered, S.invert_unordered,
+                        ),
                         rx.hstack(
                             rx.spacer(),
                             rx.button("Clear", on_click=S.clear_groups, size="1",

@@ -210,6 +210,26 @@ class PlotState(rx.State):
     def mixture_w_poisson(self) -> float:
         return float(self.mixture_result.get("w_poisson", 0.0))
 
+    @rx.var
+    def avp_domain(self) -> List[float]:
+        """Shared [min, max] across actual & predicted, so the AvP plot is square."""
+        vals: List[float] = []
+        for d in self.model_avp_data:
+            vals.append(float(d.get("actual", 0.0)))
+            vals.append(float(d.get("predicted", 0.0)))
+        if not vals:
+            return []
+        return [min(vals), max(vals)]
+
+    @rx.var
+    def avp_diagonal(self) -> List[Dict[str, float]]:
+        """Two points tracing y = x — the line predictions should fall on."""
+        dom = self.avp_domain
+        if len(dom) != 2:
+            return []
+        lo, hi = dom[0], dom[1]
+        return [{"actual": lo, "predicted": lo}, {"actual": hi, "predicted": hi}]
+
     @rx.event
     def open_modal(self):
         self.is_open = True

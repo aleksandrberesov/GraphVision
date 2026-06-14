@@ -52,8 +52,15 @@ def _model_avp_chart() -> rx.Component:
             fill_opacity=0.5,
             name="Obs",
         ),
-        rx.recharts.x_axis(data_key="actual", name="Actual", type="number"),
-        rx.recharts.y_axis(data_key="predicted", name="Predicted", type="number", width=50),
+        # y = x reference: points should hug this diagonal.
+        rx.recharts.scatter(
+            data=PlotState.avp_diagonal,
+            fill="#9ca3af",
+            line=True,
+            name="y = x",
+        ),
+        rx.recharts.x_axis(data_key="actual", name="Actual", type="number", domain=PlotState.avp_domain),
+        rx.recharts.y_axis(data_key="predicted", name="Predicted", type="number", width=50, domain=PlotState.avp_domain),
         rx.recharts.graphing_tooltip(cursor={"strokeDasharray": "3 3"}),
         width="100%",
         height=200,

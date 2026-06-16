@@ -14,7 +14,7 @@ def _ordered_badge(col: str) -> rx.Component:
         cursor=rx.cond(in_unordered, "not-allowed", "pointer"),  # type: ignore[arg-type]
         color_scheme=rx.cond(in_ordered, "green", "gray"),  # type: ignore[arg-type]
         variant=rx.cond(  # type: ignore[arg-type]
-            in_ordered, "solid", rx.cond(in_unordered, "soft", "outline")  # type: ignore[arg-type]
+            in_ordered, "solid", rx.cond(in_unordered, "soft", "surface")  # type: ignore[arg-type]
         ),
         opacity=rx.cond(in_unordered, "0.45", "1"),
         font_size="xs",
@@ -30,7 +30,7 @@ def _unordered_badge(col: str) -> rx.Component:
         cursor=rx.cond(in_ordered, "not-allowed", "pointer"),  # type: ignore[arg-type]
         color_scheme=rx.cond(in_unordered, "green", "gray"),  # type: ignore[arg-type]
         variant=rx.cond(  # type: ignore[arg-type]
-            in_unordered, "solid", rx.cond(in_ordered, "soft", "outline")  # type: ignore[arg-type]
+            in_unordered, "solid", rx.cond(in_ordered, "soft", "surface")  # type: ignore[arg-type]
         ),
         opacity=rx.cond(in_ordered, "0.45", "1"),
         font_size="xs",
@@ -96,13 +96,14 @@ def numeric_to_categorical_builder_panel() -> rx.Component:
                 ),
                 rx.divider(color="#E5E7EB"),
                 rx.hstack(
-                    rx.button("Cancel", on_click=S.close, variant="outline", color_scheme="gray"),
+                    rx.button("Cancel", on_click=S.close, variant="soft", color_scheme="brown"),
                     rx.button(rx.cond(S.is_edit_mode, "Save", "Add"), on_click=S.submit,
                               disabled=~S.can_submit, color_scheme="blue"),  # type: ignore[operator]
                     spacing="3", justify="end", width="100%",
                 ),
                 spacing="3", width="100%",
             ),
+            background_color="white",
             max_width="600px",
         ),
         open=S.is_open,

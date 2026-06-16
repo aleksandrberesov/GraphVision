@@ -26,7 +26,7 @@ def _schema_row(row: dict) -> rx.Component:
 def schema_panel() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
-            rx.dialog.title("Edit schema"),
+            rx.dialog.title("Edit schema", color="#111827"),
             rx.vstack(
                 rx.box(
                     rx.table.root(
@@ -47,7 +47,7 @@ def schema_panel() -> rx.Component:
                 ),
                 rx.hstack(
                     rx.dialog.close(
-                        rx.button("Cancel", variant="outline", color_scheme="gray")
+                        rx.button("Cancel", variant="soft", color_scheme="gray")
                     ),
                     rx.button("Save", on_click=SchemaState.save_schema),
                     spacing="3",
@@ -57,6 +57,7 @@ def schema_panel() -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
+            background_color="white",
             max_width="500px",
         ),
         open=SchemaState.is_open,

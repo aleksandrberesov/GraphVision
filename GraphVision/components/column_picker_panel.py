@@ -18,7 +18,7 @@ def _column_badge(col: str) -> rx.Component:
         on_click=ColumnPickerState.toggle_column(col),
         cursor="pointer",
         color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
-        variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
         font_size="xs",
     )
 
@@ -142,8 +142,8 @@ def column_picker_panel() -> rx.Component:
                     rx.button(
                         "Cancel",
                         on_click=ColumnPickerState.close,
-                        variant="outline",
-                        color_scheme="gray",
+                        variant="soft",
+                        color_scheme="brown",
                     ),
                     rx.button(
                         rx.cond(ColumnPickerState.is_edit_mode, "Save", "Add"),
@@ -158,6 +158,7 @@ def column_picker_panel() -> rx.Component:
                 spacing="3",
                 width="100%",
             ),
+            background_color="white",
             max_width="560px",
         ),
         open=ColumnPickerState.is_open,

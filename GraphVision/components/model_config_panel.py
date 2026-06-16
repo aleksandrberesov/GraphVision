@@ -91,7 +91,7 @@ def model_config_panel() -> rx.Component:
                     rx.button(
                         "Cancel",
                         on_click=ModelConfigState.close,
-                        variant="outline",
+                        variant="soft",
                         color_scheme="gray",
                     ),
                     rx.button(
@@ -107,6 +107,7 @@ def model_config_panel() -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
+            background_color="white",
             max_width="420px",
         ),
         open=ModelConfigState.is_open,

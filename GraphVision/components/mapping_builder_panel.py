@@ -28,7 +28,7 @@ def _column_badge(col: str) -> rx.Component:
             "blue",
             rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
         ),
-        variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
         font_size="xs",
     )
 
@@ -41,7 +41,7 @@ def _col_tab(col: str) -> rx.Component:
         col,
         on_click=MappingBuilderState.set_active_column(col),
         size="1",
-        variant=rx.cond(is_active, "solid", "outline"),  # type: ignore[arg-type]
+        variant=rx.cond(is_active, "solid", "surface"),  # type: ignore[arg-type]
         color_scheme="blue",
     )
 
@@ -219,8 +219,8 @@ def mapping_builder_panel() -> rx.Component:
                     rx.button(
                         "Cancel",
                         on_click=MappingBuilderState.close,
-                        variant="outline",
-                        color_scheme="gray",
+                        variant="soft",
+                        color_scheme="brown",
                     ),
                     rx.button(
                         rx.cond(MappingBuilderState.is_edit_mode, "Save", "Add"),
@@ -235,6 +235,7 @@ def mapping_builder_panel() -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
+            background_color="white",
             max_width="560px",
         ),
         open=MappingBuilderState.is_open,

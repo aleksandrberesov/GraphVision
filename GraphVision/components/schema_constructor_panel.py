@@ -232,14 +232,14 @@ def schema_constructor_panel() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
             rx.vstack(
-                rx.dialog.title("Base schema constructor"),
+                rx.dialog.title("Base schema constructor", color="#111827"),
                 rx.text(
                     "Click a column badge to assign it to a role. "
                     "Click it again to remove it. "
                     "Tier-1 roles (top group) are exclusive; "
                     "type overrides (bottom group) are independent flags.",
                     size="2",
-                    color_scheme="gray",
+                    color="#374151",
                 ),
                 # Scrollable role sections
                 rx.box(
@@ -248,7 +248,7 @@ def schema_constructor_panel() -> rx.Component:
                         rx.text(
                             "Column roles  ·  exclusive",
                             size="1",
-                            color_scheme="gray",
+                            color="#374151",
                             weight="medium",
                         ),
                         *[_role_section(role) for role in _TIER1_ORDER],
@@ -257,7 +257,7 @@ def schema_constructor_panel() -> rx.Component:
                         rx.text(
                             "Type overrides  ·  independent",
                             size="1",
-                            color_scheme="gray",
+                            color="#374151",
                             weight="medium",
                         ),
                         *[_role_section(role) for role in _TIER2_ORDER],
@@ -282,8 +282,8 @@ def schema_constructor_panel() -> rx.Component:
                 rx.hstack(
                     rx.button(
                         "Cancel",
-                        variant="outline",
-                        color_scheme="gray",
+                        variant="soft",
+                        color_scheme="brown",
                         on_click=BaseSchemaState.set_constructor_open(False),
                     ),
                     rx.button(
@@ -298,6 +298,7 @@ def schema_constructor_panel() -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
+            background_color="white",
             max_width="620px",
         ),
         open=BaseSchemaState.constructor_open,

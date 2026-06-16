@@ -22,7 +22,7 @@ def _first_badge(col: str) -> rx.Component:
             in_first, "green", rx.cond(in_second, "gray", "gray")  # type: ignore[arg-type]
         ),
         variant=rx.cond(  # type: ignore[arg-type]
-            in_first, "solid", rx.cond(in_second, "soft", "outline")  # type: ignore[arg-type]
+            in_first, "solid", rx.cond(in_second, "soft", "surface")  # type: ignore[arg-type]
         ),
         opacity=rx.cond(in_second, "0.45", "1"),
         font_size="xs",
@@ -40,7 +40,7 @@ def _second_badge(col: str) -> rx.Component:
             in_second, "green", rx.cond(in_first, "gray", "gray")  # type: ignore[arg-type]
         ),
         variant=rx.cond(  # type: ignore[arg-type]
-            in_second, "solid", rx.cond(in_first, "soft", "outline")  # type: ignore[arg-type]
+            in_second, "solid", rx.cond(in_first, "soft", "surface")  # type: ignore[arg-type]
         ),
         opacity=rx.cond(in_first, "0.45", "1"),
         font_size="xs",
@@ -173,8 +173,8 @@ def feature_pair_builder_panel() -> rx.Component:
                     rx.button(
                         "Cancel",
                         on_click=S.close,
-                        variant="outline",
-                        color_scheme="gray",
+                        variant="soft",
+                        color_scheme="brown",
                     ),
                     rx.button(
                         rx.cond(S.is_edit_mode, "Save", "Apply"),
@@ -189,6 +189,7 @@ def feature_pair_builder_panel() -> rx.Component:
                 spacing="3",
                 width="100%",
             ),
+            background_color="white",
             max_width="600px",
         ),
         open=S.is_open,

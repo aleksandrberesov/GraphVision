@@ -19,7 +19,7 @@ def _target_badge(col: str) -> rx.Component:
         on_click=TinySchemaState.set_target(col),
         cursor="pointer",
         color_scheme=rx.cond(is_selected, "blue", "gray"),  # type: ignore[arg-type]
-        variant=rx.cond(is_selected, "solid", "outline"),   # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),   # type: ignore[arg-type]
         font_size="xs",
         font_family="monospace",
         user_select="none",
@@ -33,7 +33,7 @@ def _exposure_badge(col: str) -> rx.Component:
         on_click=TinySchemaState.set_exposure(col),
         cursor="pointer",
         color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
-        variant=rx.cond(is_selected, "solid", "outline"),    # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),    # type: ignore[arg-type]
         font_size="xs",
         font_family="monospace",
         user_select="none",
@@ -47,7 +47,7 @@ def _index_badge(col: str) -> rx.Component:
         on_click=TinySchemaState.set_index(col),
         cursor="pointer",
         color_scheme=rx.cond(is_selected, "orange", "gray"),  # type: ignore[arg-type]
-        variant=rx.cond(is_selected, "solid", "outline"),     # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),     # type: ignore[arg-type]
         font_size="xs",
         font_family="monospace",
         user_select="none",
@@ -61,7 +61,7 @@ def _feature_badge(col: str) -> rx.Component:
         on_click=TinySchemaState.toggle_feature(col),
         cursor="pointer",
         color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
-        variant=rx.cond(is_selected, "solid", "outline"),    # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),    # type: ignore[arg-type]
         font_size="xs",
         font_family="monospace",
         user_select="none",
@@ -262,8 +262,8 @@ def tiny_schema_panel() -> rx.Component:
                     rx.button(
                         "Cancel",
                         on_click=TinySchemaState.close,
-                        variant="outline",
-                        color_scheme="gray",
+                        variant="soft",
+                        color_scheme="brown",
                     ),
                     rx.button(
                         "Add node",
@@ -278,6 +278,7 @@ def tiny_schema_panel() -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
+            background_color="white",
             max_width="520px",
         ),
         open=TinySchemaState.is_open,

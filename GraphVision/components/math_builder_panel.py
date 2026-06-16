@@ -115,7 +115,7 @@ def _column_badge(col: str) -> rx.Component:
         on_click=MathBuilderState.toggle_feature(col),
         cursor="pointer",
         color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
-        variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
         font_size="xs",
     )
 
@@ -265,8 +265,8 @@ def math_builder_panel() -> rx.Component:
                     rx.button(
                         "Cancel",
                         on_click=MathBuilderState.close,
-                        variant="outline",
-                        color_scheme="gray",
+                        variant="soft",
+                        color_scheme="brown",
                     ),
                     rx.button(
                         rx.cond(MathBuilderState.is_edit_mode, "Save", "Add"),
@@ -281,6 +281,7 @@ def math_builder_panel() -> rx.Component:
                 spacing="3",
                 width="100%",
             ),
+            background_color="white",
             max_width="560px",
         ),
         open=MathBuilderState.is_open,

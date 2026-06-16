@@ -21,7 +21,7 @@ def _make_column_badges(param_name_var, param_value_var) -> rx.Component:
             on_click=ConfigState.toggle_column(param_name_var, col),
             cursor="pointer",
             color_scheme=rx.cond(is_selected, "green", "gray"), # type: ignore[arg-type]
-            variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+            variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
             font_size="xs",
         )
 
@@ -52,7 +52,7 @@ def _make_fixed_choice_badges(param_name_var, param_value_var, choices_var) -> r
             on_click=ConfigState.toggle_column(param_name_var, choice),
             cursor="pointer",
             color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
-            variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+            variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
             font_size="xs",
         )
 
@@ -209,8 +209,8 @@ def config_panel() -> rx.Component:
                     rx.button(
                         "Cancel",
                         on_click=ConfigState.close_dialog,
-                        variant="outline",
-                        color_scheme="gray",
+                        variant="soft",
+                        color_scheme="brown",
                     ),
                     rx.button(
                         rx.cond(ConfigState.is_edit_mode, "Save", "Add"),
@@ -224,6 +224,7 @@ def config_panel() -> rx.Component:
                 spacing="4",
                 width="100%",
             ),
+            background_color="white",
             max_width="480px",
         ),
         open=ConfigState.is_open,

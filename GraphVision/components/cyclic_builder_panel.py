@@ -14,7 +14,7 @@ def _column_badge(col: str) -> rx.Component:
         on_click=S.toggle_feature(col),
         cursor="pointer",
         color_scheme=rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
-        variant=rx.cond(is_selected, "solid", "outline"),  # type: ignore[arg-type]
+        variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
         font_size="xs",
     )
 
@@ -91,13 +91,14 @@ def cyclic_builder_panel() -> rx.Component:
                 ),
                 rx.divider(color="#E5E7EB"),
                 rx.hstack(
-                    rx.button("Cancel", on_click=S.close, variant="outline", color_scheme="gray"),
+                    rx.button("Cancel", on_click=S.close, variant="soft", color_scheme="brown"),
                     rx.button(rx.cond(S.is_edit_mode, "Save", "Add"), on_click=S.submit,
                               disabled=~S.can_submit, color_scheme="blue"),  # type: ignore[operator]
                     spacing="3", justify="end", width="100%",
                 ),
                 spacing="3", width="100%",
             ),
+            background_color="white",
             max_width="560px",
         ),
         open=S.is_open,

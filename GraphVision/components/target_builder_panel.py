@@ -72,16 +72,30 @@ def target_builder_panel() -> rx.Component:
                     ),
                     spacing="1", width="100%", align_items="flex_start",
                 ),
-                rx.hstack(
-                    rx.text("Target:", font_size="xs", font_weight="bold", color="#111827"),
-                    rx.select(
-                        S.all_columns,
-                        value=S.target_col,
-                        on_change=S.set_target_col,
-                        placeholder="target column…",
-                        color="#111111", background_color="white", width="240px",
+                rx.vstack(
+                    rx.hstack(
+                        rx.text("Numeric column to orient on:", font_size="xs",
+                                font_weight="bold", color="#111827"),
+                        rx.select(
+                            S.numeric_columns,
+                            value=S.target_col,
+                            on_change=S.set_target_col,
+                            placeholder="numeric column…",
+                            color="#111111", background_color="white", width="240px",
+                        ),
+                        spacing="2", align="center",
                     ),
-                    spacing="2", align="center",
+                    rx.text(
+                        "mean / sd / sd_mean aggregate this column per category "
+                        "(e.g. mean(height) per Пол); count / w_count ignore it.",
+                        font_size="xs", color="#6B7280",
+                    ),
+                    rx.cond(
+                        S.numeric_columns.length() == 0,
+                        rx.text("No numeric columns available — apply the parent node first.",
+                                font_size="xs", color="#F87171"),
+                    ),
+                    spacing="1", width="100%", align_items="flex_start",
                 ),
 
                 # ── accumulate (add-mode only): each task → its own chained node ──

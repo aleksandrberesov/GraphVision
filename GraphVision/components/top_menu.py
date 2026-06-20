@@ -185,7 +185,7 @@ def top_menu() -> rx.Component:
                     rx.menu.sub_trigger("Transformers"),
                     rx.menu.sub_content(
                         rx.foreach(
-                            ConfigState.transformer_names,
+                            ConfigState.visible_transformer_names,
                             lambda name: rx.menu.item(
                                 name,
                                 on_click=ConfigState.open_dialog_with_class(name),

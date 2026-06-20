@@ -111,6 +111,15 @@ get_vertex_columns: Callable[[str, str], Optional[Dict[str, List[str]]]] = lambd
 # Return sorted unique string values for a column at a vertex.
 get_unique_column_values: Callable[[str, str, str], List[str]] = lambda *_: []
 
+# (session_id: str, vertex_id: str) -> List[str]
+# Return every numeric-dtype column at a vertex (features and service columns).
+get_numeric_columns: Callable[[str, str], List[str]] = lambda *_: []
+
+# (session_id: str, vertex_id: str, column: str) -> List[Dict[str, Any]]
+# Return [{value, count, pct}] for a column at a vertex, most-frequent first
+# (capped to the top categories). Powers the Category-Mapping value chips.
+get_value_frequencies: Callable[..., List[Dict[str, Any]]] = lambda *_: []
+
 # (session_id: str, vertex_id: str, column: str, row_filter=None) -> Optional[Dict[str, Any]]
 # Compute or retrieve cached distribution for a column at a vertex.
 # Result keys: histogram (List[float]), kde_curve (List[{x,y}]), statistics (Dict).
@@ -140,6 +149,13 @@ compute_vertex_feature_importance: Callable[..., Optional[Dict[str, Any]]] = lam
 # Returns {"data": [{primary_cat, <secondary_vals>…}], "bar_specs": [{cat_name, color}], "warning"}.
 # row_filter: Optional[List[Dict]] — applied before computing.
 compute_vertex_grouped_stats: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
+
+# (session_id, vertex_id, value_col, primary_col, secondary_col, row_filter=None) -> Optional[Dict]
+# Sampled long-form values for a grouped violin (Plotly go.Violin) on the Multivariate tab.
+# Returns {"rows": [{primary, secondary, value}…], "primaries": [...], "secondaries": [...],
+#          "value_col", "primary_col", "secondary_col", "warning"}.
+# row_filter: Optional[List[Dict]] — applied before computing.
+compute_vertex_grouped_violin: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
 
 # (session_id: str, vertex_id: str) -> Optional[Dict[str, Any]]
 # Return filter metadata for all visible columns at a vertex.
@@ -203,6 +219,18 @@ describe_glm_families: Callable[[], Dict[str, Any]] = lambda: {}
 add_model_node: Callable[
     [str, str, str, str, str], Optional[str]
 ] = lambda *_: None
+
+# (session_id, parent_id, kept_columns: List[str], family, link) -> Optional[Dict]
+# Option-A model flow: insert ColumnRemover → hidden Transliterator → model node
+# upstream of parent_id in one action (unselected feature columns dropped).
+# Returns fresh {"nodes": [...], "edges": [...], "model_id": str} for the UI to adopt.
+add_model_flow: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
+
+# (session_id, parent_id, kept_columns: List[str], family, link) -> Optional[Dict]
+# Build the GLM formula preview shown before fitting.
+# Returns {"formula", "target", "family", "link", "exposure", "n_numeric",
+#          "n_categorical", "warning"}.
+describe_model_formula: Callable[..., Optional[Dict[str, Any]]] = lambda *_: None
 
 # (session_id: str, vertex_id: str) -> Optional[Dict[str, Any]]
 # Return model analytics for a fitted model vertex.

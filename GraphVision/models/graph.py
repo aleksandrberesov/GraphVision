@@ -269,6 +269,14 @@ class GraphState(rx.State):
                 elif ext in ("csv", "parquet"):
                     yield BusyState.show("Processing dataset...")
                     from . import pipeline_hooks
+                    # Loading a dataset starts a fresh graph. The previous graph's
+                    # downstream transformers were built for the OLD dataset's
+                    # columns, so reusing the existing pipeline leaves stale
+                    # vertices behind: analytics shows the old cached frames and
+                    # data preview fails to re-manifest against the new columns
+                    # ("no dataset"). Reset the backend to a clean root first, and
+                    # always rebuild the UI as a single root node.
+                    pipeline_hooks.new_pipeline(session_id)
                     result = pipeline_hooks.attach_data(
                         session_id,
                         str(path),
@@ -277,16 +285,15 @@ class GraphState(rx.State):
                     )
                     if result is not None:
                         root_vertex_id, stem = result
-                        existing = next((n for n in self.nodes if n["id"] == root_vertex_id), None)
-                        if existing is None:
-                            self.nodes = [self._create_root_node(root_vertex_id)]
-                            self.edges = []
-                        else:
-                            existing["data"]["label"] = stem
+                        self.nodes = [self._create_root_node(root_vertex_id)]
+                        self.edges = []
                         self.title = stem
+                        self.data_loaded = True
                         self.nodes = pipeline_hooks.sync_statuses(
                             session_id, self.nodes
                         )
+                        pipeline_hooks.persist_pipeline(session_id)
+                        yield self._select_node(root_vertex_id)
                         yield LoggerState.add_log(f"Dataset '{file.name}' attached", "success")
                     else:
                         yield LoggerState.add_log(f"Failed to attach dataset '{file.name}'", "error")
@@ -515,6 +522,10 @@ class GraphState(rx.State):
 
             session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
             from . import pipeline_hooks
+            # Start from a clean backend pipeline so a project_name that collides
+            # with a previous session can't leave stale downstream vertices behind
+            # (they were built for the old dataset's columns).
+            pipeline_hooks.new_pipeline(session_id)
             schema_path: Optional[str] = self._schema_path if self._schema_path else None
             result = pipeline_hooks.attach_data(
                 session_id,
@@ -779,6 +790,46 @@ class GraphState(rx.State):
             yield BusyState.hide()
             if any(n["id"] == new_node["id"] for n in self.nodes):
                 yield self._select_node(new_node["id"])
+
+    @rx.event
+    async def add_model_flow(
+        self, parent_id: str, kept_columns: List[str], family: str, link: str
+    ):
+        """Option-A model flow — insert ColumnRemover → hidden Transliterator →
+        model upstream of parent_id in one backend action and adopt the fresh
+        graph (BFS-laid-out, same pattern as delete)."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from .logger_state import LoggerState
+        from . import pipeline_hooks
+
+        yield BusyState.show("Building model flow…")
+        try:
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
+            result = pipeline_hooks.add_model_flow(
+                session_id, parent_id, kept_columns, family, link
+            )
+            for entry in pipeline_hooks.pending_logs:
+                yield LoggerState.add_log(entry["message"], entry["level"])
+            pipeline_hooks.pending_logs = []
+
+            if not result:
+                yield rx.toast.error("Failed to add model flow — check logs.")
+                yield LoggerState.add_log("add_model_flow returned None", "error")
+                return
+
+            self.nodes = result["nodes"]
+            self.edges = result["edges"]
+            pipeline_hooks.persist_pipeline(session_id)
+            yield LoggerState.add_log(
+                f"Model flow added (drop unselected → transliterate → "
+                f"GLM family={family}, link={link})", "info",
+            )
+            model_id = result.get("model_id", "")
+            if model_id:
+                yield self._select_node(model_id)
+        finally:
+            yield BusyState.hide()
 
     # ------------------------------------------------------------------
     # Multi-project support

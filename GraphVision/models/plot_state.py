@@ -2,7 +2,51 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+import plotly.graph_objects as go
 import reflex as rx
+
+# Hue palette for grouped violins (one colour per secondary category).
+_MV_VIOLIN_COLORS = ["#3b82f6", "#f97316", "#10b981", "#8b5cf6", "#ef4444"]
+
+
+def _build_violin_figure(payload: Dict[str, Any]) -> go.Figure:
+    """Build a grouped Plotly violin from sampled long-form rows.
+
+    One ``go.Violin`` trace per secondary category (hue); violins are dodged along
+    the primary category (x) in ``violinmode="group"`` — vertical, filled, with the
+    inner box plot, matching the seaborn reference.
+
+    payload keys: rows [{primary, secondary, value}], primaries, secondaries,
+    value_col, primary_col, secondary_col.
+    """
+    rows = payload.get("rows", [])
+    primaries = payload.get("primaries", [])
+    secondaries = payload.get("secondaries", [])
+
+    fig = go.Figure()
+    for i, sec in enumerate(secondaries):
+        xs = [r["primary"] for r in rows if r["secondary"] == sec]
+        ys = [r["value"] for r in rows if r["secondary"] == sec]
+        if not ys:
+            continue
+        color = _MV_VIOLIN_COLORS[i % len(_MV_VIOLIN_COLORS)]
+        fig.add_trace(go.Violin(
+            x=xs, y=ys, name=str(sec), legendgroup=str(sec),
+            line_color=color, fillcolor=color, opacity=0.7,
+            box_visible=True, meanline_visible=True, points=False,
+        ))
+    fig.update_layout(
+        violinmode="group",
+        xaxis_title=payload.get("primary_col", ""),
+        yaxis_title=payload.get("value_col", ""),
+        legend_title_text=payload.get("secondary_col", ""),
+        margin=dict(l=55, r=10, t=10, b=40),
+        height=380,
+        template="plotly_white",
+    )
+    if primaries:
+        fig.update_xaxes(categoryorder="array", categoryarray=primaries)
+    return fig
 
 
 def _build_model_summary_html(summary: Dict[str, Any]) -> str:
@@ -179,6 +223,10 @@ class PlotState(rx.State):
     mv_secondary_col: str = ""
     mv_data: List[Dict[str, Any]] = []
     mv_bar_specs: List[Dict[str, str]] = []
+    mv_chart_type: str = "bar"               # "bar" | "violin"
+    mv_violin_figure: go.Figure = go.Figure()   # Plotly native grouped violin
+    mv_has_violin: bool = False
+    mv_violin_warning: str = ""
     mv_is_loading: bool = False
     mv_warning: str = ""
     corr_html: str = ""
@@ -262,6 +310,9 @@ class PlotState(rx.State):
         self.mv_secondary_col = ""
         self.mv_data = []
         self.mv_bar_specs = []
+        self.mv_violin_figure = go.Figure()
+        self.mv_has_violin = False
+        self.mv_violin_warning = ""
         self.mv_is_loading = False
         self.mv_warning = ""
         self.corr_html = ""
@@ -449,6 +500,12 @@ class PlotState(rx.State):
         self.mv_secondary_col = col
 
     @rx.event
+    def set_mv_chart_type(self, chart_type: str):
+        # Both bar and violin are computed together on Apply, so toggling only
+        # switches which one is rendered — no recompute needed.
+        self.mv_chart_type = chart_type
+
+    @rx.event
     async def apply_grouped_stats(self):
         from .auth_state import AuthState
         from . import pipeline_hooks
@@ -479,6 +536,25 @@ class PlotState(rx.State):
             self.mv_data = []
             self.mv_bar_specs = []
             self.mv_warning = "Computation failed."
+
+        # Grouped violin — sampled values handed to Plotly's native go.Violin so
+        # it draws filled vertical violins with inner box plots (seaborn-style),
+        # computed alongside the bar chart so the Bar↔Violin toggle is instant.
+        violin = pipeline_hooks.compute_vertex_grouped_violin(
+            session_id, self.current_node_id,
+            self.mv_value_col, self.mv_primary_col, self.mv_secondary_col,
+            row_filter=filter_spec or None,
+        )
+        if violin and violin.get("rows"):
+            self.mv_violin_figure = _build_violin_figure(violin)
+            self.mv_has_violin = True
+            self.mv_violin_warning = violin.get("warning", "")
+        else:
+            self.mv_violin_figure = go.Figure()
+            self.mv_has_violin = False
+            self.mv_violin_warning = (
+                (violin or {}).get("warning", "") if violin else "Computation failed."
+            )
         self.mv_is_loading = False
 
     # ------------------------------------------------------------------

@@ -20,6 +20,20 @@ def _short_label(class_name: str) -> str:
     return parts[0][:3] + parts[1][0]
 
 
+# Transformers kept registered in the backend but hidden from the UI palette /
+# dropdown (customer feedback #Вывод18062026):
+#   - GLMColumnNameTransliterator: auto-applied under the hood before the model.
+#   - GLMSmartDataFilterTransformation: runs under the hood.
+#   - GLMImputationTransformation: not implemented.
+# Hiding is UI-only — they stay in `available_transformers()` so the backend can
+# still apply them and previously-saved graphs that use them keep loading.
+HIDDEN_FROM_PALETTE: set[str] = {
+    "GLMColumnNameTransliterator",
+    "GLMSmartDataFilterTransformation",
+    "GLMImputationTransformation",
+}
+
+
 _ICONS: Dict[str, str] = {
     "GLMBinningTransformation": "bar-chart-2",
     "GLMTargetTransformation": "crosshair",
@@ -53,10 +67,17 @@ class ConfigState(rx.State):
     parent_is_root: bool = False
 
     @rx.var
+    def visible_transformer_names(self) -> List[str]:
+        """Registered transformers minus HIDDEN_FROM_PALETTE (under-the-hood /
+        unimplemented). The single source of truth for every UI list of
+        user-addable transformers."""
+        return [n for n in self.transformer_names if n not in HIDDEN_FROM_PALETTE]
+
+    @rx.var
     def transformer_entries(self) -> List[Dict[str, str]]:
         return [
             {"name": n, "label": _short_label(n), "icon": _ICONS.get(n, "box")}
-            for n in self.transformer_names
+            for n in self.visible_transformer_names
         ]
 
     @rx.var
@@ -64,10 +85,12 @@ class ConfigState(rx.State):
         """Transformer names selectable in the dialog dropdown.
 
         When the parent node is the root, only Tiny Schema may be added.
+        Transformers in HIDDEN_FROM_PALETTE are never offered (they run under the
+        hood or are unimplemented) — see the constant for rationale.
         """
         if self.parent_is_root:
-            return [n for n in self.transformer_names if n == "GLMTinySchemaTransformation"]
-        return self.transformer_names
+            return [n for n in self.visible_transformer_names if n == "GLMTinySchemaTransformation"]
+        return self.visible_transformer_names
 
     @rx.var
     def available_columns_hint(self) -> str:

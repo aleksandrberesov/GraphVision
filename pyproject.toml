@@ -10,6 +10,7 @@ authors = [{ name="Your Name" }]
 dependencies = [
     "reflex>=0.8.24.post1",
     "reflex-local-auth>=0.4.0",
+    "plotly>=5.0",
 ]
 
 [project.scripts]

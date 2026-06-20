@@ -129,6 +129,13 @@ def mixture_fit_panel() -> rx.Component:
                 ),
                 rx.recharts.line_chart(
                     rx.recharts.line(
+                        data_key="actual",
+                        stroke="#111827",
+                        dot=False,
+                        name="Actual (KDE)",
+                        stroke_width=2,
+                    ),
+                    rx.recharts.line(
                         data_key="exp",
                         stroke="#f97316",
                         dot=False,

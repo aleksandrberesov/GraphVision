@@ -27,6 +27,7 @@ class TargetBuilderState(rx.State):
 
     categorical_columns: List[str] = []
     all_columns: List[str] = []
+    numeric_columns: List[str] = []   # numeric-dtype cols to "orient on" (incl. target)
 
     selected_features: List[str] = []
     selected_aggs: List[str] = []
@@ -84,19 +85,22 @@ class TargetBuilderState(rx.State):
                 allc.extend(col_list)
             if not cat:
                 cat = list(allc)
-        return cat, allc
+        # Numeric-dtype columns (incl. the target) to orient the encoding on.
+        num = pipeline_hooks.get_numeric_columns(session_id, parent_vertex_id) or []
+        return cat, allc, num
 
     @rx.event
     async def open_for_parent(self, parent_vertex_id: str):
         from .busy_state import BusyState
 
         yield BusyState.show("Loading columns…")
-        cat, allc = await self._load_columns(parent_vertex_id)
+        cat, allc, num = await self._load_columns(parent_vertex_id)
         yield BusyState.hide()
 
         self.parent_vertex_id = parent_vertex_id
         self.categorical_columns = cat
         self.all_columns = allc
+        self.numeric_columns = num
         self.selected_features = []
         self.selected_aggs = []
         self.target_col = ""
@@ -116,7 +120,7 @@ class TargetBuilderState(rx.State):
             (e["source"] for e in graph_state.edges if e["target"] == vertex_id),
             None,
         ) or vertex_id
-        cat, allc = await self._load_columns(parent_id)
+        cat, allc, num = await self._load_columns(parent_id)
         yield BusyState.hide()
 
         targets = existing_config.get("target_columns", []) or []
@@ -124,6 +128,7 @@ class TargetBuilderState(rx.State):
         self.parent_vertex_id = parent_id
         self.categorical_columns = cat
         self.all_columns = allc
+        self.numeric_columns = num
         self.selected_features = list(existing_config.get("features_to_encode", []) or [])
         self.selected_aggs = list(existing_config.get("aggregations", []) or [])
         self.target_col = targets[0] if targets else ""

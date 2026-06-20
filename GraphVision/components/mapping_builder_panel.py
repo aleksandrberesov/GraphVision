@@ -1,76 +1,155 @@
 """
-Category Mapping Builder dialog.
+Category Mapping Builder dialog (Phase 4 — multi-select → merge).
 
-Visual builder for GLMCategoryMappingTransformation's 'mappings' param.
-The user picks categorical columns, sees their unique values, and assigns
-a group label to each value. On submit the full mappings dict is built
-automatically.
+Pick categorical columns; for the active column, sort/search its values (chips show
+frequency %), multi-select several, name a group, and Merge them. Produces the same
+GLMCategoryMappingTransformation ``mappings`` dict as before.
 """
-
-from typing import Dict
 
 import reflex as rx
 
-from ..models.mapping_builder_state import MappingBuilderState
+from ..models.mapping_builder_state import MappingBuilderState as S
 
 
-# ── column picker ─────────────────────────────────────────────────────────────
+# ── column picker / switcher ─────────────────────────────────────────────────
 
 def _column_badge(col: str) -> rx.Component:
-    is_selected = MappingBuilderState.selected_features.contains(col)  # type: ignore[attr-defined]
-    is_active = MappingBuilderState.active_column == col
+    is_selected = S.selected_features.contains(col)  # type: ignore[attr-defined]
+    is_active = S.active_column == col
     return rx.badge(
         col,
-        on_click=MappingBuilderState.toggle_feature(col),
+        on_click=S.toggle_feature(col),
         cursor="pointer",
         color_scheme=rx.cond(  # type: ignore[arg-type]
-            is_active,
-            "blue",
-            rx.cond(is_selected, "green", "gray"),  # type: ignore[arg-type]
+            is_active, "blue", rx.cond(is_selected, "green", "gray"),
         ),
         variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
         font_size="xs",
     )
 
 
-# ── column switcher tabs (shown below the mapping table) ─────────────────────
-
 def _col_tab(col: str) -> rx.Component:
-    is_active = MappingBuilderState.active_column == col
+    is_active = S.active_column == col
     return rx.button(
         col,
-        on_click=MappingBuilderState.set_active_column(col),
+        on_click=S.set_active_column(col),
         size="1",
         variant=rx.cond(is_active, "solid", "surface"),  # type: ignore[arg-type]
         color_scheme="blue",
     )
 
 
-# ── mapping table rows ────────────────────────────────────────────────────────
+# ── value chip + merged-group summary row ────────────────────────────────────
 
-def _mapping_row(row: Dict[str, str]) -> rx.Component:
+def _value_chip(item: dict) -> rx.Component:
+    return rx.badge(
+        item["label"].to(str),  # type: ignore[attr-defined]
+        on_click=S.toggle_value(item["value"]),
+        cursor="pointer",
+        color_scheme=rx.cond(  # type: ignore[arg-type]
+            item["is_selected"], "green",
+            rx.cond(item["is_merged"], "blue", "gray"),
+        ),
+        variant=rx.cond(item["is_selected"], "solid", "surface"),  # type: ignore[arg-type]
+        font_size="xs",
+    )
+
+
+def _merged_row(row: dict) -> rx.Component:
     return rx.hstack(
+        rx.icon("git-merge", size=12, color="#2563EB"),
         rx.text(
-            row["value"],
-            width="42%",
-            color="#111827",
-            font_size="sm",
-            overflow="hidden",
-            text_overflow="ellipsis",
-            white_space="nowrap",
+            row["group"].to(str) + "  ←  " + row["members"].to(str),  # type: ignore[attr-defined]
+            font_size="xs", color="#374151",
+            overflow="hidden", text_overflow="ellipsis", white_space="nowrap",
         ),
-        rx.icon("arrow-right", size=12, color="#9CA3AF"),
-        rx.input(
-            value=row["group"],
-            on_change=MappingBuilderState.update_row_group(row["value"]),
-            size="1",
-            width="42%",
-            color="#111111",
-            background_color="white",
+        spacing="1", align="center", width="100%",
+    )
+
+
+def _sort_button(label: str, mode: str) -> rx.Component:
+    return rx.button(
+        label,
+        on_click=S.set_sort_mode(mode),
+        size="1",
+        variant=rx.cond(S.sort_mode == mode, "solid", "soft"),  # type: ignore[arg-type]
+        color_scheme="gray",
+    )
+
+
+# ── active-column editor ─────────────────────────────────────────────────────
+
+def _active_editor() -> rx.Component:
+    return rx.vstack(
+        rx.divider(color="#E5E7EB"),
+        rx.hstack(
+            rx.text("Values of", font_size="xs", color="#9CA3AF"),
+            rx.text(S.active_column, font_size="xs", font_weight="bold", color="#111827"),
+            rx.spacer(),
+            rx.text("Sort:", font_size="xs", color="#9CA3AF"),
+            _sort_button("Frequency", "frequency"),
+            _sort_button("A–Z", "alphabet"),
+            spacing="2", align="center", width="100%",
         ),
-        width="100%",
-        align="center",
-        spacing="2",
+        rx.hstack(
+            rx.input(
+                value=S.search,
+                on_change=S.set_search,
+                placeholder="Search values…",
+                size="1", width="60%", color="#111111", background_color="white",
+            ),
+            rx.spacer(),
+            rx.checkbox(
+                "Hide merged",
+                checked=S.hide_merged,
+                on_change=S.set_hide_merged,
+                size="1",
+            ),
+            width="100%", align="center",
+        ),
+        # value chips
+        rx.box(
+            rx.flex(
+                rx.foreach(S.active_values_view, _value_chip),
+                flex_wrap="wrap", gap="1", width="100%",
+            ),
+            max_height="160px", overflow_y="auto", width="100%",
+        ),
+        # merge controls
+        rx.hstack(
+            rx.input(
+                value=S.group_name,
+                on_change=S.set_group_name,
+                placeholder="Group name (e.g. Lada)…",
+                size="1", width="46%", color="#111111", background_color="white",
+            ),
+            rx.button(
+                rx.hstack(rx.icon("git-merge", size=14), rx.text("Merge"),
+                          spacing="1", align="center"),
+                on_click=S.merge,
+                disabled=~S.can_merge,  # type: ignore[operator]
+                size="1", color_scheme="blue",
+            ),
+            rx.button("Reset", on_click=S.reset_selection, size="1",
+                      variant="soft", color_scheme="gray"),
+            rx.button("Clear", on_click=S.clear_merges, size="1",
+                      variant="soft", color_scheme="red"),
+            spacing="2", align="center", width="100%",
+        ),
+        # merged-group summary
+        rx.cond(
+            S.merged_groups.length() > 0,
+            rx.vstack(
+                rx.text("Groups:", font_size="xs", font_weight="bold", color="#111827"),
+                rx.box(
+                    rx.vstack(rx.foreach(S.merged_groups, _merged_row),
+                              spacing="1", width="100%"),
+                    max_height="100px", overflow_y="auto", width="100%",
+                ),
+                spacing="1", width="100%", align_items="flex_start",
+            ),
+        ),
+        spacing="2", width="100%", align_items="flex_start",
     )
 
 
@@ -84,160 +163,80 @@ def mapping_builder_panel() -> rx.Component:
                 rx.hstack(
                     rx.icon("tags", size=16, color="#2563EB"),
                     rx.text("Category Mapping Builder", color="#111827"),
-                    spacing="2",
-                    align="center",
+                    spacing="2", align="center",
                 ),
             ),
             rx.vstack(
                 # ── column picker ────────────────────────────────────────
                 rx.vstack(
-                    rx.text(
-                        "Select columns to map:",
-                        font_size="xs",
-                        font_weight="bold",
-                        color="#111827",
-                    ),
+                    rx.text("Select columns to map:", font_size="xs",
+                            font_weight="bold", color="#111827"),
                     rx.cond(
-                        MappingBuilderState.available_columns,
+                        S.available_columns,
                         rx.flex(
-                            rx.foreach(MappingBuilderState.available_columns, _column_badge),
-                            flex_wrap="wrap",
-                            gap="1",
-                            width="100%",
+                            rx.foreach(S.available_columns, _column_badge),
+                            flex_wrap="wrap", gap="1", width="100%",
                         ),
-                        rx.text(
-                            "No categorical columns available — apply the parent node first.",
-                            font_size="xs",
-                            color="#F87171",
-                        ),
+                        rx.text("No categorical columns available — apply the parent node first.",
+                                font_size="xs", color="#F87171"),
                     ),
-                    spacing="1",
-                    width="100%",
-                    align_items="flex_start",
-                ),
-
-                # ── mapping table for the active column ──────────────────
-                rx.cond(
-                    MappingBuilderState.active_column != "",
-                    rx.vstack(
-                        rx.divider(color="#374151"),
-                        rx.hstack(
-                            rx.text("Mapping:", font_size="xs", color="#9CA3AF"),
-                            rx.text(
-                                MappingBuilderState.active_column,
-                                font_size="xs",
-                                font_weight="bold",
-                                color="#111827",
-                            ),
-                            spacing="1",
-                        ),
-                        # Column header
-                        rx.hstack(
-                            rx.text("Original value", font_size="xs", color="#6B7280", width="42%"),
-                            rx.text("", width="12px"),
-                            rx.text("Group label", font_size="xs", color="#6B7280", width="42%"),
-                            width="100%",
-                        ),
-                        # Rows
-                        rx.cond(
-                            MappingBuilderState.active_rows,
-                            rx.box(
-                                rx.vstack(
-                                    rx.foreach(MappingBuilderState.active_rows, _mapping_row),
-                                    spacing="1",
-                                    width="100%",
-                                ),
-                                max_height="200px",
-                                overflow_y="auto",
-                                width="100%",
-                            ),
-                            rx.text("Loading values…", font_size="xs", color="#9CA3AF"),
-                        ),
-                        spacing="2",
-                        width="100%",
-                        align_items="flex_start",
-                    ),
-                    rx.fragment(),
+                    spacing="1", width="100%", align_items="flex_start",
                 ),
 
                 # ── column switcher (when multiple columns selected) ──────
                 rx.cond(
-                    MappingBuilderState.selected_features,
-                    rx.vstack(
-                        rx.divider(color="#374151"),
-                        rx.hstack(
-                            rx.text("Edit column:", font_size="xs", color="#9CA3AF"),
-                            rx.flex(
-                                rx.foreach(MappingBuilderState.selected_features, _col_tab),
-                                flex_wrap="wrap",
-                                gap="1",
-                            ),
-                            align="center",
-                            spacing="2",
-                            width="100%",
-                        ),
-                        spacing="1",
-                        width="100%",
+                    S.selected_features.length() > 1,
+                    rx.hstack(
+                        rx.text("Edit column:", font_size="xs", color="#9CA3AF"),
+                        rx.flex(rx.foreach(S.selected_features, _col_tab),
+                                flex_wrap="wrap", gap="1"),
+                        align="center", spacing="2", width="100%",
                     ),
-                    rx.fragment(),
                 ),
 
-                rx.divider(color="#374151"),
+                # ── active-column merge editor ───────────────────────────
+                rx.cond(S.active_column != "", _active_editor()),
+
+                rx.divider(color="#E5E7EB"),
 
                 # ── other params ─────────────────────────────────────────
                 rx.hstack(
                     rx.text("Unknown strategy:", font_size="xs", color="#111827"),
                     rx.select(
                         ["ignore", "unknown", "most_frequent"],
-                        value=MappingBuilderState.unknown_strategy,
-                        on_change=MappingBuilderState.set_unknown_strategy,
-                        size="1",
-                        color="#111111",
-                        background_color="white",
-                        width="180px",
+                        value=S.unknown_strategy,
+                        on_change=S.set_unknown_strategy,
+                        size="1", color="#111111", background_color="white", width="160px",
                     ),
-                    spacing="2",
-                    align="center",
-                ),
-                rx.hstack(
+                    rx.spacer(),
                     rx.text("Keep original:", font_size="xs", color="#111827"),
                     rx.select(
                         ["true", "false"],
-                        value=rx.cond(MappingBuilderState.keep_original, "true", "false"),
-                        on_change=MappingBuilderState.set_keep_original,
-                        size="1",
-                        color="#111111",
-                        background_color="white",
-                        width="100px",
+                        value=rx.cond(S.keep_original, "true", "false"),
+                        on_change=S.set_keep_original,
+                        size="1", color="#111111", background_color="white", width="90px",
                     ),
-                    spacing="2",
-                    align="center",
+                    spacing="2", align="center", width="100%",
                 ),
 
                 # ── action buttons ───────────────────────────────────────
                 rx.hstack(
+                    rx.button("Cancel", on_click=S.close, variant="soft", color_scheme="brown"),
                     rx.button(
-                        "Cancel",
-                        on_click=MappingBuilderState.close,
-                        variant="soft",
-                        color_scheme="brown",
-                    ),
-                    rx.button(
-                        rx.cond(MappingBuilderState.is_edit_mode, "Save", "Add"),
-                        on_click=MappingBuilderState.submit,
-                        disabled=~MappingBuilderState.can_submit,  # type: ignore[operator]
+                        rx.cond(S.is_edit_mode, "Save", "Apply"),
+                        on_click=S.submit,
+                        disabled=~S.can_submit,  # type: ignore[operator]
                         color_scheme="blue",
                     ),
-                    spacing="3",
-                    justify="end",
-                    width="100%",
+                    spacing="3", justify="end", width="100%",
                 ),
-                spacing="4",
-                width="100%",
+                spacing="3", width="100%",
             ),
             background_color="white",
-            max_width="560px",
+            max_width="580px",
+            max_height="85vh",
+            overflow_y="auto",
         ),
-        open=MappingBuilderState.is_open,
-        on_open_change=MappingBuilderState.set_is_open,
+        open=S.is_open,
+        on_open_change=S.set_is_open,
     )

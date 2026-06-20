@@ -406,28 +406,55 @@ def _multivariate_tab() -> rx.Component:
             spacing="3",
             flex_wrap="wrap",
         ),
-        rx.button(
-            rx.cond(
-                PlotState.mv_is_loading,
-                rx.hstack(rx.spinner(size="1"), rx.text("Loading…"), spacing="1", align_items="center"),
-                rx.text("Apply"),
+        rx.hstack(
+            rx.button(
+                rx.cond(
+                    PlotState.mv_is_loading,
+                    rx.hstack(rx.spinner(size="1"), rx.text("Loading…"), spacing="1", align_items="center"),
+                    rx.text("Apply"),
+                ),
+                on_click=PlotState.apply_grouped_stats,
+                disabled=PlotState.mv_is_loading,
+                size="1",
+                variant="soft",
+                color_scheme="blue",
             ),
-            on_click=PlotState.apply_grouped_stats,
-            disabled=PlotState.mv_is_loading,
-            size="1",
-            variant="soft",
-            color_scheme="blue",
+            rx.spacer(),
+            # Chart-type toggle (Bar ↔ Violin); both are computed on Apply so the
+            # switch is instant.
+            rx.button(
+                "Bar",
+                on_click=PlotState.set_mv_chart_type("bar"),
+                size="1",
+                variant=rx.cond(PlotState.mv_chart_type == "bar", "solid", "soft"),
+                color_scheme="blue",
+            ),
+            rx.button(
+                "Violin",
+                on_click=PlotState.set_mv_chart_type("violin"),
+                size="1",
+                variant=rx.cond(PlotState.mv_chart_type == "violin", "solid", "soft"),
+                color_scheme="blue",
+            ),
+            width="100%",
+            align_items="center",
         ),
         rx.cond(
-            PlotState.mv_warning != "",
+            rx.cond(PlotState.mv_chart_type == "violin",
+                    PlotState.mv_violin_warning, PlotState.mv_warning) != "",
             rx.callout.root(
-                rx.callout.text(PlotState.mv_warning, font_size="xs"),
+                rx.callout.text(
+                    rx.cond(PlotState.mv_chart_type == "violin",
+                            PlotState.mv_violin_warning, PlotState.mv_warning),
+                    font_size="xs",
+                ),
                 color="gray",
                 size="1",
             ),
         ),
+        # ── Bar chart (mean per primary × secondary) ──────────────────────
         rx.cond(
-            PlotState.mv_data,
+            (PlotState.mv_chart_type == "bar") & (PlotState.mv_data.length() > 0),
             rx.recharts.bar_chart(
                 rx.foreach(
                     PlotState.mv_bar_specs,
@@ -444,6 +471,14 @@ def _multivariate_tab() -> rx.Component:
                 data=PlotState.mv_data,
                 width="100%",
                 height=280,
+            ),
+        ),
+        # ── Violin chart (server-computed KDE, horizontal) ────────────────
+        rx.cond(
+            (PlotState.mv_chart_type == "violin") & PlotState.mv_has_violin,
+            rx.box(
+                rx.plotly(data=PlotState.mv_violin_figure, width="100%", height="380px"),
+                width="100%",
             ),
         ),
         width="100%",

@@ -143,6 +143,8 @@ def _active_editor() -> rx.Component:
                 on_change=S.set_group_name,
                 placeholder="Group name (e.g. Lada)…",
                 size="1", width="46%", color="#111111", background_color="white",
+                border="2px solid #2563EB",
+                class_name="merge-input",
             ),
             rx.button(
                 rx.hstack(rx.icon("git-merge", size=14), rx.text("Merge"),
@@ -176,10 +178,27 @@ def _active_editor() -> rx.Component:
 
 # ── public component ──────────────────────────────────────────────────────────
 
+_MERGE_INPUT_CSS = """
+.merge-input,
+.merge-input input {
+    color: #111111 !important;
+}
+.merge-input::placeholder,
+.merge-input input::placeholder {
+    color: #2563EB !important;
+    opacity: 0.7 !important;
+}
+.merge-input:focus-within {
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35) !important;
+}
+"""
+
+
 def mapping_builder_panel() -> rx.Component:
     """Category Mapping Builder dialog (rendered once in the page layout)."""
     return rx.dialog.root(
         rx.dialog.content(
+            rx.el.style(_MERGE_INPUT_CSS),
             rx.dialog.title(
                 rx.hstack(
                     rx.icon("tags", size=16, color="#2563EB"),
@@ -255,7 +274,7 @@ def mapping_builder_panel() -> rx.Component:
                 rx.cond(
                     S.can_submit & ~S.has_any_merges,  # type: ignore[operator]
                     rx.callout.root(
-                        rx.callout.icon(rx.icon("triangle-alert", size=15)),
+                        rx.callout.icon(rx.icon("info", size=15)),
                         rx.callout.text(
                             rx.vstack(
                                 rx.text(
@@ -272,7 +291,8 @@ def mapping_builder_panel() -> rx.Component:
                                 spacing="1", align_items="flex_start",
                             ),
                         ),
-                        color="yellow",
+                        color_scheme="blue",
+                        variant="surface",
                         size="1",
                         width="100%",
                     ),

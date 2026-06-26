@@ -16,12 +16,23 @@ from ..models.mapping_builder_state import MappingBuilderState as S
 def _column_badge(col: str) -> rx.Component:
     is_selected = S.selected_features.contains(col)  # type: ignore[attr-defined]
     is_active = S.active_column == col
+    n_merges = S.merge_count_per_col[col]
+    has_merges = n_merges > 0
     return rx.badge(
-        col,
+        rx.hstack(
+            rx.text(col),
+            rx.cond(
+                is_selected & has_merges,
+                rx.badge(n_merges.to(str), color_scheme="green", variant="solid", size="1"),
+                rx.fragment(),
+            ),
+            spacing="1", align="center",
+        ),
         on_click=S.toggle_feature(col),
         cursor="pointer",
         color_scheme=rx.cond(  # type: ignore[arg-type]
-            is_active, "blue", rx.cond(is_selected, "green", "gray"),
+            is_active, "blue",
+            rx.cond(is_selected & has_merges, "green", rx.cond(is_selected, "orange", "gray")),
         ),
         variant=rx.cond(is_selected, "solid", "surface"),  # type: ignore[arg-type]
         font_size="xs",
@@ -30,12 +41,22 @@ def _column_badge(col: str) -> rx.Component:
 
 def _col_tab(col: str) -> rx.Component:
     is_active = S.active_column == col
+    n_merges = S.merge_count_per_col[col]
+    has_merges = n_merges > 0
     return rx.button(
-        col,
+        rx.hstack(
+            rx.text(col),
+            rx.cond(
+                has_merges,
+                rx.badge(n_merges.to(str), color_scheme="green", variant="solid", size="1"),
+                rx.badge("0", color_scheme="gray", variant="surface", size="1"),
+            ),
+            spacing="1", align="center",
+        ),
         on_click=S.set_active_column(col),
         size="1",
         variant=rx.cond(is_active, "solid", "surface"),  # type: ignore[arg-type]
-        color_scheme="blue",
+        color_scheme=rx.cond(has_merges, "blue", "gray"),  # type: ignore[arg-type]
     )
 
 
@@ -195,7 +216,18 @@ def mapping_builder_panel() -> rx.Component:
                 ),
 
                 # ── active-column merge editor ───────────────────────────
-                rx.cond(S.active_column != "", _active_editor()),
+                rx.cond(
+                    S.active_column != "",
+                    _active_editor(),
+                    rx.cond(
+                        S.selected_features.length() > 0,
+                        rx.text(
+                            "Click a selected column (orange/green badge above) to start merging its values.",
+                            font_size="xs", color="#6B7280", font_style="italic",
+                        ),
+                        rx.fragment(),
+                    ),
+                ),
 
                 rx.divider(color="#E5E7EB"),
 
@@ -217,6 +249,33 @@ def mapping_builder_panel() -> rx.Component:
                         size="1", color="#111111", background_color="white", width="90px",
                     ),
                     spacing="2", align="center", width="100%",
+                ),
+
+                # ── no-merge warning ─────────────────────────────────────
+                rx.cond(
+                    S.can_submit & ~S.has_any_merges,  # type: ignore[operator]
+                    rx.callout.root(
+                        rx.callout.icon(rx.icon("triangle-alert", size=15)),
+                        rx.callout.text(
+                            rx.vstack(
+                                rx.text(
+                                    "No groups merged yet — the output column will be "
+                                    "identical to the source column.",
+                                    font_weight="bold",
+                                    font_size="xs",
+                                ),
+                                rx.text(
+                                    "How to merge: click a column above → select several "
+                                    "values (they turn green) → type a group name → click Merge.",
+                                    font_size="xs",
+                                ),
+                                spacing="1", align_items="flex_start",
+                            ),
+                        ),
+                        color="yellow",
+                        size="1",
+                        width="100%",
+                    ),
                 ),
 
                 # ── action buttons ───────────────────────────────────────

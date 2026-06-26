@@ -68,6 +68,25 @@ class MappingBuilderState(rx.State):
         return bool(self.selected_values) and bool(self.group_name.strip())
 
     @rx.var
+    def has_any_merges(self) -> bool:
+        """True if at least one selected column has at least one non-identity merge."""
+        for col in self.selected_features:
+            gm: Dict[str, str] = json.loads(self.saved_mappings.get(col, "{}"))
+            for val, grp in gm.items():
+                if val != grp:
+                    return True
+        return False
+
+    @rx.var
+    def merge_count_per_col(self) -> Dict[str, int]:
+        """Number of non-identity merges per selected column (for the summary row)."""
+        result: Dict[str, int] = {}
+        for col in self.selected_features:
+            gm: Dict[str, str] = json.loads(self.saved_mappings.get(col, "{}"))
+            result[col] = sum(1 for val, grp in gm.items() if val != grp)
+        return result
+
+    @rx.var
     def active_values_view(self) -> List[Dict[str, Any]]:
         """Chips for the active column: frequency-formatted, filtered, sorted."""
         if not self.active_column:

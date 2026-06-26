@@ -687,6 +687,40 @@ class GraphState(rx.State):
             yield BusyState.hide()
 
     @rx.event
+    async def apply_config_edit(self, vertex_id: str, class_name: str, config: Dict[str, Any]):
+        """Update an existing vertex's config, re-apply it, and persist."""
+        from .auth_state import AuthState
+        from .busy_state import BusyState
+        from . import pipeline_hooks
+        yield BusyState.show("Applying transformation...")
+        try:
+            session_id = f"{(await self.get_state(AuthState)).user_id}::{self.project_name}"
+            pipeline_hooks.update_transformation_config(session_id, vertex_id, class_name, config)
+            # Keep UI node data in sync so edit dialog reopens with new values.
+            self.nodes = [
+                {**n, "data": {**n["data"], "transformation_config": config}}
+                if n["id"] == vertex_id else n
+                for n in self.nodes
+            ]
+            error = pipeline_hooks.manifest_vertex(session_id, vertex_id)
+            for entry in pipeline_hooks.pending_logs:
+                yield LoggerState.add_log(entry["message"], entry["level"])
+            pipeline_hooks.pending_logs = []
+            self.nodes = pipeline_hooks.sync_statuses(session_id, self.nodes)
+            from .node import NodeState
+            updated_node = next((n for n in self.nodes if n["id"] == vertex_id), None)
+            yield NodeState.set_node(updated_node)
+            pipeline_hooks.persist_pipeline(session_id)
+            if error is None:
+                yield rx.toast.success("Transformer updated!")
+                yield LoggerState.add_log(f"Transformer '{class_name}' reconfigured and applied", "success")
+            else:
+                yield rx.toast.error(error)
+                yield LoggerState.add_log(f"Transformer '{class_name}' reconfigured but failed: {error}", "error")
+        finally:
+            yield BusyState.hide()
+
+    @rx.event
     async def add_transformation_node(self, transformation_class: str, config: Dict[str, Any]):
         import asyncio
         from .auth_state import AuthState

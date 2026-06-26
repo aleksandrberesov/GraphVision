@@ -200,16 +200,12 @@ class TargetBuilderState(rx.State):
             if not self.current_complete:
                 yield rx.toast.error("Pick feature(s), aggregation(s) and a target.")
                 return
-            from .auth_state import AuthState
-            from . import pipeline_hooks
-            session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
             self.is_open = False
-            pipeline_hooks.update_transformation_config(
-                session_id, self.vertex_id_editing, "GLMTargetTransformation", self._current_config()
-            )
+            vertex_id = self.vertex_id_editing
+            config = self._current_config()
             self.is_edit_mode = False
             self.vertex_id_editing = ""
-            yield GraphState.refresh_statuses_from_pipeline()
+            yield GraphState.apply_config_edit(vertex_id, "GLMTargetTransformation", config)
             return
 
         # Add mode: accumulated tasks + the current selection (if complete).

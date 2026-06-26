@@ -346,18 +346,10 @@ class MappingBuilderState(rx.State):
         self.is_open = False
 
         if self.is_edit_mode:
-            from .auth_state import AuthState
-            from . import pipeline_hooks
-            session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
-            pipeline_hooks.update_transformation_config(
-                session_id,
-                self.vertex_id_editing,
-                "GLMCategoryMappingTransformation",
-                config,
-            )
+            vertex_id = self.vertex_id_editing
             self.is_edit_mode = False
             self.vertex_id_editing = ""
-            yield GraphState.refresh_statuses_from_pipeline()
+            yield GraphState.apply_config_edit(vertex_id, "GLMCategoryMappingTransformation", config)
         else:
             if self.parent_vertex_id:
                 yield graph_state._select_node(self.parent_vertex_id)

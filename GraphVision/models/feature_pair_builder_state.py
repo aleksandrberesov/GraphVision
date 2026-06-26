@@ -202,16 +202,11 @@ class FeaturePairBuilderState(rx.State):
                 yield rx.toast.error("Both groups need at least one column.")
                 return
             config = {"first_group": list(self.first_group), "second_group": list(self.second_group)}
-            from .auth_state import AuthState
-            from . import pipeline_hooks
-            session_id = f"{(await self.get_state(AuthState)).user_id}::{graph_state.project_name}"
             self.is_open = False
-            pipeline_hooks.update_transformation_config(
-                session_id, self.vertex_id_editing, "GLMFeaturePairTransformation", config
-            )
+            vertex_id = self.vertex_id_editing
             self.is_edit_mode = False
             self.vertex_id_editing = ""
-            yield GraphState.refresh_statuses_from_pipeline()
+            yield GraphState.apply_config_edit(vertex_id, "GLMFeaturePairTransformation", config)
             return
 
         # Add mode: gather accumulated tasks + the current pair (if complete).
